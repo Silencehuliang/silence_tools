@@ -11,7 +11,6 @@ class GoldPriceApp {
             'retail': { price: 0, change: 0, changePercent: 0, time: '' }
         };
         this.lastPrice = null;
-        
         this.init();
     }
     
@@ -20,11 +19,7 @@ class GoldPriceApp {
         this.bindEvents();
         this.loadPriceData();
         this.renderAlerts();
-        
-        // 每60秒更新一次价格
         setInterval(() => this.loadPriceData(), 60000);
-        
-        // 每10秒检查提醒
         setInterval(() => this.checkAlerts(), 10000);
     }
     
@@ -50,179 +45,82 @@ class GoldPriceApp {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top',
-                        labels: { font: { size: 14 } }
-                    },
+                    legend: { display: true, position: 'top', labels: { font: { size: 14 } } },
                     tooltip: {
                         mode: 'index',
                         intersect: false,
                         callbacks: {
-                            label: function(context) {
-                                return `${context.dataset.label}: ${context.parsed.y.toFixed(2)} 元/克`;
-                            }
+                            label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} 元/克`
                         }
                     }
                 },
                 scales: {
-                    x: {
-                        display: true,
-                        title: { display: true, text: '时间' },
-                        grid: { display: false }
-                    },
-                    y: {
-                        display: true,
-                        title: { display: true, text: '价格 (元/克)' },
-                        grid: { color: 'rgba(0, 0, 0, 0.1)' }
-                    }
+                    x: { display: true, title: { display: true, text: '时间' }, grid: { display: false } },
+                    y: { display: true, title: { display: true, text: '价格 (元/克)' }, grid: { color: 'rgba(0,0,0,0.1)' } }
                 },
-                interaction: {
-                    mode: 'nearest',
-                    axis: 'x',
-                    intersect: false
-                }
+                interaction: { mode: 'nearest', axis: 'x', intersect: false }
             }
         });
     }
     
     bindEvents() {
         document.querySelectorAll('.time-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', e => {
                 document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
                 e.target.classList.add('active');
                 this.currentPeriod = e.target.dataset.period;
                 this.loadChartData();
             });
         });
-        
-        document.getElementById('addAlert').addEventListener('click', () => {
-            this.addAlert();
-        });
-        
-        // Worker URL 设置
-        const workerInput = document.getElementById('workerUrl');
-        const savedWorker = localStorage.getItem('workerApi') || '';
-        if (savedWorker) {
-            workerInput.value = savedWorker;
-            document.getElementById('workerStatus').textContent = '✓ 已配置Worker API';
-            document.getElementById('workerStatus').style.color = '#27ae60';
-        }
-        
-        document.getElementById('saveWorker').addEventListener('click', () => {
-            const url = workerInput.value.trim().replace(/\/$/, '');
-            if (url) {
-                localStorage.setItem('workerApi', url);
-                document.getElementById('workerStatus').textContent = '✓ 已保存，刷新后生效';
-                document.getElementById('workerStatus').style.color = '#27ae60';
-                setTimeout(() => this.loadPriceData(), 500);
-            } else {
-                localStorage.removeItem('workerApi');
-                document.getElementById('workerStatus').textContent = '已清除，使用备用数据源';
-                document.getElementById('workerStatus').style.color = '#666';
-            }
-        });
-    }
-    
-    getWorkerBase() {
-        // Worker地址 - 部署后替换为实际Worker域名
-        return localStorage.getItem('workerApi') || '';
-    }
-    
-    async fetchSinaGold(symbols = 'au9999,au9995') {
-        const base = this.getWorkerBase();
-        if (!base) {
-            // 回退到gold-api
-            return this.fetchFallbackGold();
-        }
-        const response = await fetch(`${base}/api/gold?symbols=${symbols}`);
-        if (!response.ok) throw new Error('新浪财经API请求失败');
-        return await response.json();
-    }
-    
-    async fetchFallbackGold() {
-        const response = await fetch('https://api.gold-api.com/price/XAU');
-        if (!response.ok) throw new Error('金价API请求失败');
-        const goldData = await response.json();
-        const rateResp = await fetch('https://open.er-api.com/v6/latest/USD');
-        const rateData = await rateResp.json();
-        const usdCny = rateData.rates.CNY;
-        const pricePerGram = (goldData.price * usdCny) / 31.1035;
-        
-        return {
-            au9999: {
-                name: 'Au99.99',
-                price: pricePerGram,
-                open: pricePerGram,
-                prevClose: pricePerGram,
-                high: pricePerGram,
-                low: pricePerGram,
-                change: 0,
-                changePercent: 0,
-                time: new Date(goldData.updatedAt).toLocaleTimeString('zh-CN'),
-                goldUSD: goldData.price,
-                usdCny: usdCny
-            }
-        };
-    }
-    
-    async fetchSinaKLine(symbol = 'au9999', scale = 240, datalen = 100) {
-        const base = this.getWorkerBase();
-        if (!base) return [];
-        const response = await fetch(`${base}/api/gold/kline?symbol=${symbol}&scale=${scale}&datalen=${datalen}`);
-        if (!response.ok) return [];
-        return await response.json();
+        document.getElementById('addAlert').addEventListener('click', () => this.addAlert());
     }
     
     async loadPriceData() {
         try {
-            const data = await this.fetchSinaGold('au9999,au9995');
+            const [goldRes, rateRes] = await Promise.all([
+                fetch('https://api.gold-api.com/price/XAU'),
+                fetch('https://open.er-api.com/v6/latest/USD')
+            ]);
             
-            const au9999 = data.au9999 || {};
-            const au9995 = data.au9995 || {};
+            if (!goldRes.ok) throw new Error('金价API失败');
+            if (!rateRes.ok) throw new Error('汇率API失败');
             
-            const price1 = au9999.price || 0;
-            const price2 = au9995.price || (price1 > 0 ? price1 - 2 : 0);
-            const price3 = price1 > 0 ? price1 + 118 : 0; // 品牌零售价参考
+            const goldData = await goldRes.json();
+            const rateData = await rateRes.json();
             
-            const timeStr = au9999.time || new Date().toLocaleTimeString('zh-CN');
+            const goldUSD = goldData.price;
+            const usdCny = rateData.rates.CNY;
+            const pricePerGram = (goldUSD * usdCny) / 31.1035;
+            const updatedAt = new Date(goldData.updatedAt);
+            const timeStr = updatedAt.toLocaleTimeString('zh-CN');
+            
+            // 计算涨跌
+            let change = 0, changePercent = 0;
+            if (this.lastPrice) {
+                change = pricePerGram - this.lastPrice;
+                changePercent = (change / this.lastPrice) * 100;
+            }
             
             this.priceData = {
                 'Au99.99': {
-                    price: price1,
-                    change: au9999.change || 0,
-                    changePercent: au9999.changePercent || 0,
-                    time: timeStr,
-                    date: new Date().toLocaleDateString('zh-CN'),
-                    high: au9999.high || price1,
-                    low: au9999.low || price1,
-                    open: au9999.open || price1,
-                    prevClose: au9999.prevClose || price1
+                    price: pricePerGram, change, changePercent, time: timeStr,
+                    date: updatedAt.toLocaleDateString('zh-CN')
                 },
                 'Au99.95': {
-                    price: price2,
-                    change: au9995.change || 0,
-                    changePercent: au9995.changePercent || 0,
-                    time: timeStr,
-                    date: new Date().toLocaleDateString('zh-CN')
+                    price: pricePerGram - 3, change: change * 0.95,
+                    changePercent: changePercent * 0.95, time: timeStr,
+                    date: updatedAt.toLocaleDateString('zh-CN')
                 },
                 'retail': {
-                    price: price3,
-                    change: au9999.change || 0,
-                    changePercent: price1 > 0 ? ((au9999.change || 0) / price3) * 100 : 0,
-                    time: timeStr,
-                    date: new Date().toLocaleDateString('zh-CN')
+                    price: pricePerGram + 118, change,
+                    changePercent: pricePerGram > 0 ? (change / (pricePerGram + 118)) * 100 : 0,
+                    time: timeStr, date: updatedAt.toLocaleDateString('zh-CN')
                 },
-                _meta: {
-                    goldUSD: au9999.goldUSD || 0,
-                    usdCny: au9999.usdCny || 0
-                }
+                _meta: { goldUSD, usdCny }
             };
             
-            // 保存历史价格用于图表
-            this.savePriceHistory(price1);
-            
-            this.lastPrice = price1;
+            this.savePriceHistory(pricePerGram);
+            this.lastPrice = pricePerGram;
             this.updatePriceDisplay();
             this.loadChartData();
         } catch (error) {
@@ -236,11 +134,8 @@ class GoldPriceApp {
     savePriceHistory(price) {
         const now = Date.now();
         this.priceHistory.push({ time: now, price });
-        
-        // 只保留最近7天的数据
         const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
         this.priceHistory = this.priceHistory.filter(p => p.time > sevenDaysAgo);
-        
         localStorage.setItem('goldPriceHistory', JSON.stringify(this.priceHistory));
     }
     
@@ -249,13 +144,11 @@ class GoldPriceApp {
         this.updatePriceCard('price2', 'change2', 'changePercent2', 'updateTime2', this.priceData['Au99.95']);
         this.updatePriceCard('price3', 'change3', 'changePercent3', 'updateTime3', this.priceData['retail']);
         
-        // 显示USD金价和汇率
         const meta = this.priceData._meta;
         if (meta) {
             document.getElementById('goldUsd').textContent = `$${meta.goldUSD.toFixed(2)}/oz`;
             document.getElementById('usdCnyRate').textContent = meta.usdCny.toFixed(4);
         }
-        
         document.getElementById('lastUpdate').textContent = new Date().toLocaleString('zh-CN');
     }
     
@@ -266,120 +159,54 @@ class GoldPriceApp {
     }
     
     updateChangeDisplay(changeId, percentId, data) {
-        const changeElement = document.getElementById(changeId);
-        const percentElement = document.getElementById(percentId);
-        
-        const change = data.change;
-        const percent = data.changePercent;
-        
-        changeElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}`;
-        percentElement.textContent = `${percent >= 0 ? '+' : ''}${percent.toFixed(2)}%`;
-        
-        changeElement.className = `change-value ${change >= 0 ? 'change-positive' : 'change-negative'}`;
-        percentElement.className = `change-value ${change >= 0 ? 'change-positive' : 'change-negative'}`;
+        const ce = document.getElementById(changeId);
+        const pe = document.getElementById(percentId);
+        ce.textContent = `${data.change >= 0 ? '+' : ''}${data.change.toFixed(2)}`;
+        pe.textContent = `${data.changePercent >= 0 ? '+' : ''}${data.changePercent.toFixed(2)}%`;
+        ce.className = `change-value ${data.change >= 0 ? 'change-positive' : 'change-negative'}`;
+        pe.className = `change-value ${data.changePercent >= 0 ? 'change-positive' : 'change-negative'}`;
     }
     
-    async loadChartData() {
-        // 尝试从新浪获取真实K线数据
-        const base = this.getWorkerBase();
-        if (base) {
-            try {
-                const scaleMap = { '1d': 5, '1w': 30, '1m': 240, '3m': 240, '6m': 240, '1y': 1440 };
-                const scale = scaleMap[this.currentPeriod] || 240;
-                const datalenMap = { '1d': 48, '1w': 168, '1m': 30, '3m': 90, '6m': 180, '1y': 365 };
-                const datalen = datalenMap[this.currentPeriod] || 100;
-                
-                const klineData = await this.fetchSinaKLine('au9999', scale, datalen);
-                if (klineData && klineData.length > 0) {
-                    const chartData = klineData.map(item => ({
-                        time: new Date(item.day),
-                        price: parseFloat(item.close)
-                    }));
-                    this.updateChart(chartData);
-                    return;
-                }
-            } catch (e) {
-                console.log('Sina KLine API failed, using generated data');
-            }
-        }
-        
-        // 回退到模拟数据
+    loadChartData() {
         const data = this.generateChartData();
         this.updateChart(data);
     }
     
     generateChartData() {
         const now = Date.now();
-        let points, interval;
-        
-        switch (this.currentPeriod) {
-            case '1d':
-                points = 24;
-                interval = 60 * 60 * 1000;
-                break;
-            case '1w':
-                points = 7 * 24;
-                interval = 60 * 60 * 1000;
-                break;
-            case '1m':
-                points = 30;
-                interval = 24 * 60 * 60 * 1000;
-                break;
-            case '3m':
-                points = 90;
-                interval = 24 * 60 * 60 * 1000;
-                break;
-            case '6m':
-                points = 180;
-                interval = 24 * 60 * 60 * 1000;
-                break;
-            case '1y':
-                points = 365;
-                interval = 24 * 60 * 60 * 1000;
-                break;
-            default:
-                points = 24;
-                interval = 60 * 60 * 1000;
-        }
+        const periodConfig = {
+            '1d': { points: 24, interval: 3600000 },
+            '1w': { points: 168, interval: 3600000 },
+            '1m': { points: 30, interval: 86400000 },
+            '3m': { points: 90, interval: 86400000 },
+            '6m': { points: 180, interval: 86400000 },
+            '1y': { points: 365, interval: 86400000 }
+        };
+        const { points, interval } = periodConfig[this.currentPeriod] || periodConfig['1d'];
         
         const currentPrice = this.priceData['Au99.99'].price || 918;
         const data = [];
-        
-        // 基于真实历史数据生成更合理的模拟数据
-        // 近期金价在850-950区间波动
         let basePrice = currentPrice;
         
         for (let i = points; i >= 0; i--) {
             const time = new Date(now - i * interval);
-            
-            // 根据时间距离调整波动幅度
             const volatility = i > 30 ? 8 : (i > 7 ? 4 : 2);
             basePrice += (Math.random() - 0.5) * volatility;
             basePrice = Math.max(currentPrice * 0.9, Math.min(currentPrice * 1.1, basePrice));
-            
             data.push({ time, price: basePrice });
         }
         
-        // 确保最后一个点是当前真实价格
-        if (data.length > 0) {
-            data[data.length - 1].price = currentPrice;
-        }
-        
+        if (data.length > 0) data[data.length - 1].price = currentPrice;
         return data;
     }
     
     updateChart(data) {
-        const labels = data.map(item => {
-            if (this.currentPeriod === '1d' || this.currentPeriod === '1w') {
-                return item.time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-            }
-            return item.time.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
-        });
-        
-        const prices = data.map(item => item.price);
-        
-        this.chart.data.labels = labels;
-        this.chart.data.datasets[0].data = prices;
+        this.chart.data.labels = data.map(item =>
+            (this.currentPeriod === '1d' || this.currentPeriod === '1w')
+                ? item.time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+                : item.time.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+        );
+        this.chart.data.datasets[0].data = data.map(item => item.price);
         this.chart.update();
     }
     
@@ -388,21 +215,9 @@ class GoldPriceApp {
         const price = parseFloat(document.getElementById('alertPrice').value);
         const goldType = document.getElementById('alertGoldType').value;
         
-        if (isNaN(price) || price <= 0) {
-            alert('请输入有效的价格/百分比');
-            return;
-        }
+        if (isNaN(price) || price <= 0) { alert('请输入有效的价格/百分比'); return; }
         
-        const alertObj = {
-            id: Date.now(),
-            type,
-            price,
-            goldType,
-            active: true,
-            createdAt: new Date().toISOString()
-        };
-        
-        this.alerts.push(alertObj);
+        this.alerts.push({ id: Date.now(), type, price, goldType, active: true, createdAt: new Date().toISOString() });
         localStorage.setItem('goldAlerts', JSON.stringify(this.alerts));
         this.renderAlerts();
         document.getElementById('alertPrice').value = '';
@@ -411,37 +226,18 @@ class GoldPriceApp {
     
     renderAlerts() {
         const container = document.getElementById('alertsContainer');
-        
-        if (this.alerts.length === 0) {
-            container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">暂无提醒设置</p>';
+        if (!this.alerts.length) {
+            container.innerHTML = '<p style="color:#666;text-align:center;padding:20px">暂无提醒设置</p>';
             return;
         }
-        
-        container.innerHTML = this.alerts.map(alertObj => {
-            let conditionText = '';
-            const typeName = { 'Au99.99': 'Au99.99', 'Au99.95': 'Au99.95', 'retail': '品牌零售价' }[alertObj.goldType] || alertObj.goldType;
-            
-            switch (alertObj.type) {
-                case 'above':
-                    conditionText = `${typeName} 价格高于 ¥${alertObj.price}/克`;
-                    break;
-                case 'below':
-                    conditionText = `${typeName} 价格低于 ¥${alertObj.price}/克`;
-                    break;
-                case 'change':
-                    conditionText = `${typeName} 涨跌幅超过 ${alertObj.price}%`;
-                    break;
-            }
-            
-            return `
-                <div class="alert-item">
-                    <div class="alert-info">
-                        <div class="alert-condition">${conditionText}</div>
-                        <div class="alert-status">创建时间: ${new Date(alertObj.createdAt).toLocaleString('zh-CN')}</div>
-                    </div>
-                    <button class="delete-alert" onclick="app.deleteAlert(${alertObj.id})">删除</button>
-                </div>
-            `;
+        const names = { 'Au99.99': 'Au99.99', 'Au99.95': 'Au99.95', 'retail': '品牌零售价' };
+        container.innerHTML = this.alerts.map(a => {
+            let text = '';
+            const n = names[a.goldType] || a.goldType;
+            if (a.type === 'above') text = `${n} 价格高于 ¥${a.price}/克`;
+            else if (a.type === 'below') text = `${n} 价格低于 ¥${a.price}/克`;
+            else text = `${n} 涨跌幅超过 ${a.price}%`;
+            return `<div class="alert-item"><div class="alert-info"><div class="alert-condition">${text}</div><div class="alert-status">创建: ${new Date(a.createdAt).toLocaleString('zh-CN')}</div></div><button class="delete-alert" onclick="app.deleteAlert(${a.id})">删除</button></div>`;
         }).join('');
     }
     
@@ -452,29 +248,17 @@ class GoldPriceApp {
     }
     
     checkAlerts() {
-        this.alerts.forEach(alertObj => {
-            if (!alertObj.active) return;
-            
-            const currentPrice = this.priceData[alertObj.goldType]?.price;
-            if (!currentPrice) return;
-            
-            let triggered = false;
-            
-            switch (alertObj.type) {
-                case 'above':
-                    triggered = currentPrice >= alertObj.price;
-                    break;
-                case 'below':
-                    triggered = currentPrice <= alertObj.price;
-                    break;
-                case 'change':
-                    triggered = Math.abs(this.priceData[alertObj.goldType].changePercent) >= alertObj.price;
-                    break;
-            }
-            
-            if (triggered) {
-                this.showNotification(alertObj, currentPrice);
-                alertObj.active = false;
+        this.alerts.forEach(a => {
+            if (!a.active) return;
+            const cur = this.priceData[a.goldType]?.price;
+            if (!cur) return;
+            let hit = false;
+            if (a.type === 'above') hit = cur >= a.price;
+            else if (a.type === 'below') hit = cur <= a.price;
+            else hit = Math.abs(this.priceData[a.goldType].changePercent) >= a.price;
+            if (hit) {
+                this.showNotification(a, cur);
+                a.active = false;
                 localStorage.setItem('goldAlerts', JSON.stringify(this.alerts));
                 this.renderAlerts();
             }
@@ -482,42 +266,28 @@ class GoldPriceApp {
     }
     
     async requestNotificationPermission() {
-        if ('Notification' in window && Notification.permission === 'default') {
-            await Notification.requestPermission();
-        }
+        if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission();
     }
     
-    showNotification(alertObj, currentPrice) {
-        const typeName = { 'Au99.99': 'Au99.99', 'Au99.95': 'Au99.95', 'retail': '品牌零售价' }[alertObj.goldType] || alertObj.goldType;
-        let message = '';
-        
-        switch (alertObj.type) {
-            case 'above':
-                message = `${typeName} 当前 ¥${currentPrice.toFixed(2)}/克，已超过 ¥${alertObj.price}/克`;
-                break;
-            case 'below':
-                message = `${typeName} 当前 ¥${currentPrice.toFixed(2)}/克，已低于 ¥${alertObj.price}/克`;
-                break;
-            case 'change':
-                message = `${typeName} 涨跌幅已达 ${this.priceData[alertObj.goldType].changePercent.toFixed(2)}%`;
-                break;
-        }
+    showNotification(a, cur) {
+        const n = { 'Au99.99': 'Au99.99', 'Au99.95': 'Au99.95', 'retail': '品牌零售价' }[a.goldType] || a.goldType;
+        let msg = '';
+        if (a.type === 'above') msg = `${n} 当前 ¥${cur.toFixed(2)}/克，已超过 ¥${a.price}/克`;
+        else if (a.type === 'below') msg = `${n} 当前 ¥${cur.toFixed(2)}/克，已低于 ¥${a.price}/克`;
+        else msg = `${n} 涨跌幅已达 ${this.priceData[a.goldType].changePercent.toFixed(2)}%`;
         
         if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('金价提醒', { body: message, icon: '/pwa-192x192.svg' });
+            new Notification('金价提醒', { body: msg, icon: '/pwa-192x192.svg' });
         }
-        
-        alert(`金价提醒: ${message}`);
+        alert(`金价提醒: ${msg}`);
     }
     
     showError(message) {
-        const container = document.querySelector('.price-section');
-        container.innerHTML = `
-            <div class="error" style="grid-column: 1 / -1;">
+        document.querySelector('.price-section').innerHTML = `
+            <div class="error" style="grid-column:1/-1">
                 <p>${message}</p>
-                <button onclick="location.reload()" style="margin-top: 10px; padding: 8px 16px; background: #b8860b; color: white; border: none; border-radius: 6px; cursor: pointer;">重试</button>
-            </div>
-        `;
+                <button onclick="location.reload()" style="margin-top:10px;padding:8px 16px;background:#b8860b;color:#fff;border:none;border-radius:6px;cursor:pointer">重试</button>
+            </div>`;
     }
 }
 
