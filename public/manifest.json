@@ -1,0 +1,23 @@
+{
+  "name": "Silence Tools - 工具集合",
+  "short_name": "Silence Tools",
+  "description": "实用工具集合，提升工作效率",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#667eea",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "pwa-192x192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "pwa-512x512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["utilities", "finance"]
+}

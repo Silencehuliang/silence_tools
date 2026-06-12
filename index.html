@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Silence Tools - 工具集合</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        
+        h1 {
+            color: white;
+            font-size: 3rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.2rem;
+        }
+        
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+        
+        .tool-card {
+            background: white;
+            border-radius: 20px;
+            padding: 35px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        
+        .tool-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        }
+        
+        .tool-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+        
+        .tool-card h2 {
+            color: #333;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+        
+        .tool-card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .tool-features {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 15px;
+        }
+        
+        .feature-tag {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+        
+        .tool-status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-top: 15px;
+        }
+        
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-beta {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-planned {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            padding: 30px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        footer a {
+            color: white;
+            text-decoration: none;
+        }
+        
+        footer a:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .tools-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .tool-card {
+                padding: 25px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛠️ Silence Tools</h1>
+            <p class="subtitle">实用工具集合，提升工作效率</p>
+        </header>
+        
+        <div class="tools-grid">
+            <a href="tools/gold-price/" class="tool-card">
+                <div class="tool-icon">💰</div>
+                <h2>国内金价查看</h2>
+                <p>实时查看国内黄金价格，支持多品种金价查询、走势图表分析、价格提醒设置等功能。</p>
+                <div class="tool-features">
+                    <span class="feature-tag">实时金价</span>
+                    <span class="feature-tag">走势图表</span>
+                    <span class="feature-tag">价格提醒</span>
+                    <span class="feature-tag">多时间维度</span>
+                </div>
+                <span class="tool-status status-active">已上线</span>
+            </a>
+            
+            <div class="tool-card" style="opacity: 0.6; cursor: not-allowed;">
+                <div class="tool-icon">📊</div>
+                <h2>汇率换算</h2>
+                <p>支持多种货币实时汇率查询与换算，包含历史汇率走势对比。</p>
+                <div class="tool-features">
+                    <span class="feature-tag">实时汇率</span>
+                    <span class="feature-tag">货币换算</span>
+                    <span class="feature-tag">历史数据</span>
+                </div>
+                <span class="tool-status status-planned">计划中</span>
+            </div>
+            
+            <div class="tool-card" style="opacity: 0.6; cursor: not-allowed;">
+                <div class="tool-icon">🔐</div>
+                <h2>密码生成器</h2>
+                <p>安全生成高强度随机密码，支持自定义长度、字符类型等参数。</p>
+                <div class="tool-features">
+                    <span class="feature-tag">安全生成</span>
+                    <span class="feature-tag">自定义规则</span>
+                    <span class="feature-tag">一键复制</span>
+                </div>
+                <span class="tool-status status-planned">计划中</span>
+            </div>
+            
+            <div class="tool-card" style="opacity: 0.6; cursor: not-allowed;">
+                <div class="tool-icon">📐</div>
+                <h2>单位换算</h2>
+                <p>支持长度、重量、面积、体积等多种单位的快速换算。</p>
+                <div class="tool-features">
+                    <span class="feature-tag">多类型换算</span>
+                    <span class="feature-tag">精确计算</span>
+                    <span class="feature-tag">常用收藏</span>
+                </div>
+                <span class="tool-status status-planned">计划中</span>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 2024 Silence Tools | <a href="https://github.com" target="_blank">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // PWA 注册
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch(registrationError => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+        
+        // 检查并更新PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(registration => {
+                registration.update();
+            });
+        }
+    </script>
+</body>
+</html>
