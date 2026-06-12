@@ -122,8 +122,7 @@ class GoldPriceApp {
         // 国际金价
         document.getElementById('price1').textContent = `$${d.intl.price.toFixed(2)}`;
         document.getElementById('price1Unit').textContent = '/盎司';
-        document.getElementById('change1').textContent = '--';
-        document.getElementById('changePercent1').textContent = '';
+        document.getElementById('change1').textContent = '实时';
         document.getElementById('updateTime1').textContent = d.intl.time;
         
         // 国内金价
