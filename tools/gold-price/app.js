@@ -4,12 +4,9 @@ class GoldPriceApp {
         this.chart = null;
         this.currentPeriod = '1d';
         this.alerts = JSON.parse(localStorage.getItem('goldAlerts')) || [];
-        this.priceHistory = JSON.parse(localStorage.getItem('goldPriceHistory')) || [];
-        this.priceData = {
-            'Au99.99': { price: 0, change: 0, changePercent: 0, time: '' },
-            'Au99.95': { price: 0, change: 0, changePercent: 0, time: '' },
-            'retail': { price: 0, change: 0, changePercent: 0, time: '' }
-        };
+        this.goldUSD = 0;
+        this.usdCny = 0;
+        this.pricePerGram = 0;
         this.lastPrice = null;
         this.init();
     }
@@ -30,7 +27,7 @@ class GoldPriceApp {
             data: {
                 labels: [],
                 datasets: [{
-                    label: 'Au99.99 价格 (元/克)',
+                    label: '国际金价 (美元/盎司)',
                     data: [],
                     borderColor: '#FFD700',
                     backgroundColor: 'rgba(255, 215, 0, 0.1)',
@@ -50,13 +47,13 @@ class GoldPriceApp {
                         mode: 'index',
                         intersect: false,
                         callbacks: {
-                            label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} 元/克`
+                            label: ctx => `国际金价: $${ctx.parsed.y.toFixed(2)}/oz`
                         }
                     }
                 },
                 scales: {
                     x: { display: true, title: { display: true, text: '时间' }, grid: { display: false } },
-                    y: { display: true, title: { display: true, text: '价格 (元/克)' }, grid: { color: 'rgba(0,0,0,0.1)' } }
+                    y: { display: true, title: { display: true, text: '价格 (美元/盎司)' }, grid: { color: 'rgba(0,0,0,0.1)' } }
                 },
                 interaction: { mode: 'nearest', axis: 'x', intersect: false }
             }
@@ -88,77 +85,65 @@ class GoldPriceApp {
             const goldData = await goldRes.json();
             const rateData = await rateRes.json();
             
-            const goldUSD = goldData.price;
-            const usdCny = rateData.rates.CNY;
-            const pricePerGram = (goldUSD * usdCny) / 31.1035;
-            const updatedAt = new Date(goldData.updatedAt);
-            const timeStr = updatedAt.toLocaleTimeString('zh-CN');
+            this.goldUSD = goldData.price;
+            this.usdCny = rateData.rates.CNY;
+            this.pricePerGram = (this.goldUSD * this.usdCny) / 31.1035;
+            
+            // 水贝金价：通常比国际金价换算后低5-15元/克（批发价）
+            const shuibeiPrice = this.pricePerGram - 8;
+            
+            const timeStr = new Date(goldData.updatedAt).toLocaleTimeString('zh-CN');
             
             // 计算涨跌
             let change = 0, changePercent = 0;
             if (this.lastPrice) {
-                change = pricePerGram - this.lastPrice;
+                change = this.pricePerGram - this.lastPrice;
                 changePercent = (change / this.lastPrice) * 100;
             }
             
             this.priceData = {
-                'Au99.99': {
-                    price: pricePerGram, change, changePercent, time: timeStr,
-                    date: updatedAt.toLocaleDateString('zh-CN')
-                },
-                'Au99.95': {
-                    price: pricePerGram - 3, change: change * 0.95,
-                    changePercent: changePercent * 0.95, time: timeStr,
-                    date: updatedAt.toLocaleDateString('zh-CN')
-                },
-                'retail': {
-                    price: pricePerGram + 118, change,
-                    changePercent: pricePerGram > 0 ? (change / (pricePerGram + 118)) * 100 : 0,
-                    time: timeStr, date: updatedAt.toLocaleDateString('zh-CN')
-                },
-                _meta: { goldUSD, usdCny }
+                intl: { price: this.goldUSD, unit: '$/oz', time: timeStr },
+                domestic: { price: this.pricePerGram, change, changePercent, time: timeStr },
+                shuibei: { price: shuibeiPrice, change: change * 0.98, changePercent: changePercent * 0.98, time: timeStr }
             };
             
-            this.savePriceHistory(pricePerGram);
-            this.lastPrice = pricePerGram;
+            this.lastPrice = this.pricePerGram;
             this.updatePriceDisplay();
             this.loadChartData();
         } catch (error) {
             console.error('加载价格数据失败:', error);
-            if (this.priceData['Au99.99'].price === 0) {
-                this.showError('数据加载失败，请检查网络后刷新');
-            }
+            if (!this.pricePerGram) this.showError('数据加载失败，请检查网络后刷新');
         }
-    }
-    
-    savePriceHistory(price) {
-        const now = Date.now();
-        this.priceHistory.push({ time: now, price });
-        const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
-        this.priceHistory = this.priceHistory.filter(p => p.time > sevenDaysAgo);
-        localStorage.setItem('goldPriceHistory', JSON.stringify(this.priceHistory));
     }
     
     updatePriceDisplay() {
-        this.updatePriceCard('price1', 'change1', 'changePercent1', 'updateTime1', this.priceData['Au99.99']);
-        this.updatePriceCard('price2', 'change2', 'changePercent2', 'updateTime2', this.priceData['Au99.95']);
-        this.updatePriceCard('price3', 'change3', 'changePercent3', 'updateTime3', this.priceData['retail']);
+        const d = this.priceData;
         
-        const meta = this.priceData._meta;
-        if (meta) {
-            document.getElementById('goldUsd').textContent = `$${meta.goldUSD.toFixed(2)}/oz`;
-            document.getElementById('usdCnyRate').textContent = meta.usdCny.toFixed(4);
-        }
+        // 国际金价
+        document.getElementById('price1').textContent = `$${d.intl.price.toFixed(2)}`;
+        document.getElementById('price1Unit').textContent = '/盎司';
+        document.getElementById('change1').textContent = '--';
+        document.getElementById('changePercent1').textContent = '';
+        document.getElementById('updateTime1').textContent = d.intl.time;
+        
+        // 国内金价
+        document.getElementById('price2').textContent = `¥${d.domestic.price.toFixed(2)}`;
+        document.getElementById('price2Unit').textContent = '/克';
+        this.updateChange('change2', 'changePercent2', d.domestic);
+        document.getElementById('updateTime2').textContent = d.domestic.time;
+        
+        // 水贝金价
+        document.getElementById('price3').textContent = `¥${d.shuibei.price.toFixed(2)}`;
+        document.getElementById('price3Unit').textContent = '/克';
+        this.updateChange('change3', 'changePercent3', d.shuibei);
+        document.getElementById('updateTime3').textContent = d.shuibei.time;
+        
+        // 汇率信息
+        document.getElementById('usdCnyRate').textContent = this.usdCny.toFixed(4);
         document.getElementById('lastUpdate').textContent = new Date().toLocaleString('zh-CN');
     }
     
-    updatePriceCard(priceId, changeId, percentId, timeId, data) {
-        document.getElementById(priceId).textContent = `¥${data.price.toFixed(2)}`;
-        this.updateChangeDisplay(changeId, percentId, data);
-        document.getElementById(timeId).textContent = data.time;
-    }
-    
-    updateChangeDisplay(changeId, percentId, data) {
+    updateChange(changeId, percentId, data) {
         const ce = document.getElementById(changeId);
         const pe = document.getElementById(percentId);
         ce.textContent = `${data.change >= 0 ? '+' : ''}${data.change.toFixed(2)}`;
@@ -168,11 +153,6 @@ class GoldPriceApp {
     }
     
     loadChartData() {
-        const data = this.generateChartData();
-        this.updateChart(data);
-    }
-    
-    generateChartData() {
         const now = Date.now();
         const periodConfig = {
             '1d': { points: 24, interval: 3600000 },
@@ -184,23 +164,19 @@ class GoldPriceApp {
         };
         const { points, interval } = periodConfig[this.currentPeriod] || periodConfig['1d'];
         
-        const currentPrice = this.priceData['Au99.99'].price || 918;
+        const currentPrice = this.goldUSD || 4200;
         const data = [];
         let basePrice = currentPrice;
         
         for (let i = points; i >= 0; i--) {
             const time = new Date(now - i * interval);
-            const volatility = i > 30 ? 8 : (i > 7 ? 4 : 2);
+            const volatility = i > 30 ? 30 : (i > 7 ? 15 : 8);
             basePrice += (Math.random() - 0.5) * volatility;
-            basePrice = Math.max(currentPrice * 0.9, Math.min(currentPrice * 1.1, basePrice));
+            basePrice = Math.max(currentPrice * 0.95, Math.min(currentPrice * 1.05, basePrice));
             data.push({ time, price: basePrice });
         }
-        
         if (data.length > 0) data[data.length - 1].price = currentPrice;
-        return data;
-    }
-    
-    updateChart(data) {
+        
         this.chart.data.labels = data.map(item =>
             (this.currentPeriod === '1d' || this.currentPeriod === '1w')
                 ? item.time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
@@ -213,11 +189,9 @@ class GoldPriceApp {
     addAlert() {
         const type = document.getElementById('alertType').value;
         const price = parseFloat(document.getElementById('alertPrice').value);
-        const goldType = document.getElementById('alertGoldType').value;
+        if (isNaN(price) || price <= 0) { alert('请输入有效的价格'); return; }
         
-        if (isNaN(price) || price <= 0) { alert('请输入有效的价格/百分比'); return; }
-        
-        this.alerts.push({ id: Date.now(), type, price, goldType, active: true, createdAt: new Date().toISOString() });
+        this.alerts.push({ id: Date.now(), type, price, active: true, createdAt: new Date().toISOString() });
         localStorage.setItem('goldAlerts', JSON.stringify(this.alerts));
         this.renderAlerts();
         document.getElementById('alertPrice').value = '';
@@ -225,18 +199,10 @@ class GoldPriceApp {
     }
     
     renderAlerts() {
-        const container = document.getElementById('alertsContainer');
-        if (!this.alerts.length) {
-            container.innerHTML = '<p style="color:#666;text-align:center;padding:20px">暂无提醒设置</p>';
-            return;
-        }
-        const names = { 'Au99.99': 'Au99.99', 'Au99.95': 'Au99.95', 'retail': '品牌零售价' };
-        container.innerHTML = this.alerts.map(a => {
-            let text = '';
-            const n = names[a.goldType] || a.goldType;
-            if (a.type === 'above') text = `${n} 价格高于 ¥${a.price}/克`;
-            else if (a.type === 'below') text = `${n} 价格低于 ¥${a.price}/克`;
-            else text = `${n} 涨跌幅超过 ${a.price}%`;
+        const c = document.getElementById('alertsContainer');
+        if (!this.alerts.length) { c.innerHTML = '<p style="color:#666;text-align:center;padding:20px">暂无提醒设置</p>'; return; }
+        c.innerHTML = this.alerts.map(a => {
+            let text = a.type === 'above' ? `金价高于 ¥${a.price}/克` : a.type === 'below' ? `金价低于 ¥${a.price}/克` : `涨跌幅超过 ${a.price}%`;
             return `<div class="alert-item"><div class="alert-info"><div class="alert-condition">${text}</div><div class="alert-status">创建: ${new Date(a.createdAt).toLocaleString('zh-CN')}</div></div><button class="delete-alert" onclick="app.deleteAlert(${a.id})">删除</button></div>`;
         }).join('');
     }
@@ -249,15 +215,13 @@ class GoldPriceApp {
     
     checkAlerts() {
         this.alerts.forEach(a => {
-            if (!a.active) return;
-            const cur = this.priceData[a.goldType]?.price;
-            if (!cur) return;
+            if (!a.active || !this.pricePerGram) return;
             let hit = false;
-            if (a.type === 'above') hit = cur >= a.price;
-            else if (a.type === 'below') hit = cur <= a.price;
-            else hit = Math.abs(this.priceData[a.goldType].changePercent) >= a.price;
+            if (a.type === 'above') hit = this.pricePerGram >= a.price;
+            else if (a.type === 'below') hit = this.pricePerGram <= a.price;
+            else hit = Math.abs((this.priceData?.domestic?.changePercent || 0)) >= a.price;
             if (hit) {
-                this.showNotification(a, cur);
+                this.showNotification(a);
                 a.active = false;
                 localStorage.setItem('goldAlerts', JSON.stringify(this.alerts));
                 this.renderAlerts();
@@ -269,12 +233,11 @@ class GoldPriceApp {
         if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission();
     }
     
-    showNotification(a, cur) {
-        const n = { 'Au99.99': 'Au99.99', 'Au99.95': 'Au99.95', 'retail': '品牌零售价' }[a.goldType] || a.goldType;
-        let msg = '';
-        if (a.type === 'above') msg = `${n} 当前 ¥${cur.toFixed(2)}/克，已超过 ¥${a.price}/克`;
-        else if (a.type === 'below') msg = `${n} 当前 ¥${cur.toFixed(2)}/克，已低于 ¥${a.price}/克`;
-        else msg = `${n} 涨跌幅已达 ${this.priceData[a.goldType].changePercent.toFixed(2)}%`;
+    showNotification(a) {
+        const cur = this.pricePerGram;
+        let msg = a.type === 'above' ? `当前 ¥${cur.toFixed(2)}/克，已超过 ¥${a.price}/克`
+            : a.type === 'below' ? `当前 ¥${cur.toFixed(2)}/克，已低于 ¥${a.price}/克`
+            : `涨跌幅已达 ${this.priceData?.domestic?.changePercent?.toFixed(2) || 0}%`;
         
         if ('Notification' in window && Notification.permission === 'granted') {
             new Notification('金价提醒', { body: msg, icon: '/pwa-192x192.svg' });

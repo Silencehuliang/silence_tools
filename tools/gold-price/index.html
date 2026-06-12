@@ -313,21 +313,22 @@
             <h1>💰 国内金价查看工具</h1>
             <p class="subtitle">实时查看黄金价格 · 走势分析 · 价格提醒</p>
             <div style="margin-top: 10px; padding: 8px 16px; background: rgba(184, 134, 11, 0.1); border-radius: 8px; display: inline-block;">
-                <span style="color: #666;">国际金价: </span>
-                <span id="goldUsd" style="font-weight: 500;">$--/oz</span>
-                <span style="color: #999; margin: 0 8px;">|</span>
-                <span style="color: #666;">汇率: </span>
-                <span id="usdCnyRate" style="font-weight: 500;">--</span>
+                <span style="color: #666;">实时汇率: </span>
+                <span style="font-weight: 500;">1 USD = </span>
+                <span id="usdCnyRate" style="font-weight: 500; color: #b8860b;">--</span>
+                <span style="font-weight: 500;"> CNY</span>
             </div>
         </header>
         
         <section class="price-section">
             <div class="price-card">
-                <h3>Au99.99（国际金价）</h3>
-                <div class="current-price" id="price1">加载中...</div>
+                <h3>🌍 国际金价</h3>
+                <div class="current-price">
+                    <span id="price1">加载中...</span>
+                    <span id="price1Unit" style="font-size: 1rem; color: #666;"></span>
+                </div>
                 <div class="price-change">
-                    <span class="change-value" id="change1">--</span>
-                    <span class="change-value" id="changePercent1">--</span>
+                    <span class="change-value" id="change1" style="color: #999;">实时</span>
                 </div>
                 <div style="margin-top: 10px; color: #666; font-size: 0.9rem;">
                     更新时间: <span id="updateTime1">--</span>
@@ -335,8 +336,11 @@
             </div>
             
             <div class="price-card">
-                <h3>Au99.95（足金）</h3>
-                <div class="current-price" id="price2">加载中...</div>
+                <h3>🇨🇳 国内金价（参考）</h3>
+                <div class="current-price">
+                    <span id="price2">加载中...</span>
+                    <span id="price2Unit" style="font-size: 1rem; color: #666;"></span>
+                </div>
                 <div class="price-change">
                     <span class="change-value" id="change2">--</span>
                     <span class="change-value" id="changePercent2">--</span>
@@ -347,8 +351,11 @@
             </div>
             
             <div class="price-card">
-                <h3>品牌金店零售价（参考）</h3>
-                <div class="current-price" id="price3">加载中...</div>
+                <h3>💎 水贝金价（批发）</h3>
+                <div class="current-price">
+                    <span id="price3">加载中...</span>
+                    <span id="price3Unit" style="font-size: 1rem; color: #666;"></span>
+                </div>
                 <div class="price-change">
                     <span class="change-value" id="change3">--</span>
                     <span class="change-value" id="changePercent3">--</span>
@@ -361,7 +368,7 @@
         
         <section class="chart-section">
             <div class="chart-header">
-                <h2>📈 金价走势图</h2>
+                <h2>📈 国际金价走势图</h2>
                 <div class="time-buttons">
                     <button class="time-btn active" data-period="1d">1天</button>
                     <button class="time-btn" data-period="1w">1周</button>
