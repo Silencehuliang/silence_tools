@@ -101,18 +101,30 @@ class GoldPriceApp {
         });
     }
     
-    async fetchGoldPrice(symbol = 'XAU', currency = 'CNY') {
-        const response = await fetch(`https://api.gold-api.com/price/${symbol}/${currency}`);
-        if (!response.ok) throw new Error('API请求失败');
+    async fetchGoldPriceUSD() {
+        const response = await fetch('https://api.gold-api.com/price/XAU');
+        if (!response.ok) throw new Error('金价API请求失败');
         return await response.json();
+    }
+    
+    async fetchUSDCNY() {
+        const response = await fetch('https://open.er-api.com/v6/latest/USD');
+        if (!response.ok) throw new Error('汇率API请求失败');
+        const data = await response.json();
+        return data.rates.CNY;
     }
     
     async loadPriceData() {
         try {
-            const data = await this.fetchGoldPrice('XAU', 'CNY');
-            const pricePerOunce = data.price;
+            const [goldData, usdCny] = await Promise.all([
+                this.fetchGoldPriceUSD(),
+                this.fetchUSDCNY()
+            ]);
+            
+            const goldUSD = goldData.price;
+            const pricePerOunce = goldUSD * usdCny;
             const pricePerGram = pricePerOunce / 31.1035;
-            const updatedAt = new Date(data.updatedAt);
+            const updatedAt = new Date(goldData.updatedAt);
             const timeStr = updatedAt.toLocaleTimeString('zh-CN');
             const dateStr = updatedAt.toLocaleDateString('zh-CN');
             
@@ -152,6 +164,10 @@ class GoldPriceApp {
                     changePercent: (change3 / price3) * 100,
                     time: timeStr,
                     date: dateStr
+                },
+                _meta: {
+                    goldUSD: goldUSD,
+                    usdCny: usdCny
                 }
             };
             
@@ -184,6 +200,13 @@ class GoldPriceApp {
         this.updatePriceCard('price1', 'change1', 'changePercent1', 'updateTime1', this.priceData['Au99.99']);
         this.updatePriceCard('price2', 'change2', 'changePercent2', 'updateTime2', this.priceData['Au99.95']);
         this.updatePriceCard('price3', 'change3', 'changePercent3', 'updateTime3', this.priceData['retail']);
+        
+        // 显示USD金价和汇率
+        const meta = this.priceData._meta;
+        if (meta) {
+            document.getElementById('goldUsd').textContent = `$${meta.goldUSD.toFixed(2)}/oz`;
+            document.getElementById('usdCnyRate').textContent = meta.usdCny.toFixed(4);
+        }
         
         document.getElementById('lastUpdate').textContent = new Date().toLocaleString('zh-CN');
     }
