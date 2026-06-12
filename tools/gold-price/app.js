@@ -109,7 +109,7 @@ class GoldPriceApp {
     
     async loadPriceData() {
         try {
-            const data = await fetchGoldPrice('XAU', 'CNY');
+            const data = await this.fetchGoldPrice('XAU', 'CNY');
             const pricePerOunce = data.price;
             const pricePerGram = pricePerOunce / 31.1035;
             const updatedAt = new Date(data.updatedAt);
