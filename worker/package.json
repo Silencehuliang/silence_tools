@@ -1,0 +1,10 @@
+{
+  "name": "silence-tools-api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute silence-tools-db --file=schema.sql"
+  }
+}

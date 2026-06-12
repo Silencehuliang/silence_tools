@@ -158,8 +158,13 @@
 <body>
     <div class="container">
         <header>
-            <h1>🛠️ Silence Tools</h1>
-            <p class="subtitle">实用工具集合，提升工作效率</p>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px;">
+                <div>
+                    <h1>🛠️ Silence Tools</h1>
+                    <p class="subtitle">实用工具集合，提升工作效率</p>
+                </div>
+                <div id="authContainer" style="display: flex; align-items: center;"></div>
+            </div>
         </header>
         
         <div class="tools-grid">
@@ -238,6 +243,12 @@
                 registration.update();
             });
         }
+    </script>
+    <script src="tools/gold-price/auth.js"></script>
+    <script>
+        auth.init().then(() => {
+            auth.renderLoginUI('authContainer');
+        });
     </script>
 </body>
 </html>

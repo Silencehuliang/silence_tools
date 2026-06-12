@@ -307,7 +307,10 @@
 </head>
 <body>
     <div class="container">
-        <a href="/" class="back-btn">← 返回工具首页</a>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <a href="/" class="back-btn">← 返回工具首页</a>
+            <div id="authContainer"></div>
+        </div>
         
         <header>
             <h1>💰 国内金价查看工具</h1>
@@ -426,6 +429,12 @@
         </footer>
     </div>
 
+    <script src="auth.js"></script>
     <script type="module" src="app.js"></script>
+    <script>
+        auth.init().then(() => {
+            auth.renderLoginUI('authContainer');
+        });
+    </script>
 </body>
 </html>

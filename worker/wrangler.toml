@@ -1,0 +1,17 @@
+name = "silence-tools-api"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "silence-tools-db"
+database_id = "<创建后填入>"
+
+[vars]
+FRONTEND_URL = "https://silence-tools.pages.dev"
+GITHUB_CLIENT_ID = "<GitHub OAuth App ID>"
+GITEE_CLIENT_ID = "<Gitee OAuth App ID>"
+GOLD_DATA_REPO = "Silencehuliang/silence_tools"
+
+[triggers]
+crons = ["0 0 * * *"]

@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { VitePWA } from 'vite-plugin-pwa'
+import { viteStaticCopy } from 'vite-plugin-static-copy'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -42,6 +43,12 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,json}']
       }
+    }),
+    viteStaticCopy({
+      targets: [
+        { src: 'tools/gold-price/auth.js', dest: 'tools/gold-price' },
+        { src: 'tools/gold-price/auth.js', dest: '.' }
+      ]
     })
   ],
   build: {
