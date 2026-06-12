@@ -143,5 +143,5 @@ class AuthManager {
   }
 }
 
-const AUTH_API_BASE = 'https://silence-tools-api.workers.dev';
+const AUTH_API_BASE = 'https://silence-tools-api.silencehuliang.workers.dev';
 const auth = new AuthManager(AUTH_API_BASE);

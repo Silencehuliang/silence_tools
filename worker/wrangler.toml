@@ -5,11 +5,11 @@ compatibility_date = "2024-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "silence-tools-db"
-database_id = "<创建后填入>"
+database_id = "aad4577f-e799-4fbf-b6da-3d98eafd5916"
 
 [vars]
 FRONTEND_URL = "https://silence-tools.pages.dev"
-GITHUB_CLIENT_ID = "<GitHub OAuth App ID>"
+GITHUB_CLIENT_ID = "Ov23liJXGVwyqlvKLTt3"
 GITEE_CLIENT_ID = "<Gitee OAuth App ID>"
 GOLD_DATA_REPO = "Silencehuliang/silence_tools"
 
