@@ -63,11 +63,12 @@ export async function handleGithubAuth(request, env, isCallback = false) {
     console.log('Session created:', session.token);
 
     // 设置 cookie 并重定向
-    const response = Response.redirect(`${frontendUrl}?login=success`, 302);
-    response.headers.append('Set-Cookie',
+    const headers = new Headers();
+    headers.set('Location', `${frontendUrl}?login=success`);
+    headers.append('Set-Cookie',
       `session=${session.token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`
     );
-    return response;
+    return new Response(null, { status: 302, headers });
     
   } catch (err) {
     console.error('GitHub auth error:', err.message, err.stack);
