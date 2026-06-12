@@ -220,9 +220,9 @@ class GoldPriceApp {
             };
             
             // 保存历史价格用于图表
-            this.savePriceHistory(pricePerGram);
+            this.savePriceHistory(price1);
             
-            this.lastPrice = pricePerGram;
+            this.lastPrice = price1;
             this.updatePriceDisplay();
             this.loadChartData();
         } catch (error) {
