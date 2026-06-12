@@ -99,75 +99,123 @@ class GoldPriceApp {
         document.getElementById('addAlert').addEventListener('click', () => {
             this.addAlert();
         });
+        
+        // Worker URL 设置
+        const workerInput = document.getElementById('workerUrl');
+        const savedWorker = localStorage.getItem('workerApi') || '';
+        if (savedWorker) {
+            workerInput.value = savedWorker;
+            document.getElementById('workerStatus').textContent = '✓ 已配置Worker API';
+            document.getElementById('workerStatus').style.color = '#27ae60';
+        }
+        
+        document.getElementById('saveWorker').addEventListener('click', () => {
+            const url = workerInput.value.trim().replace(/\/$/, '');
+            if (url) {
+                localStorage.setItem('workerApi', url);
+                document.getElementById('workerStatus').textContent = '✓ 已保存，刷新后生效';
+                document.getElementById('workerStatus').style.color = '#27ae60';
+                setTimeout(() => this.loadPriceData(), 500);
+            } else {
+                localStorage.removeItem('workerApi');
+                document.getElementById('workerStatus').textContent = '已清除，使用备用数据源';
+                document.getElementById('workerStatus').style.color = '#666';
+            }
+        });
     }
     
-    async fetchGoldPriceUSD() {
-        const response = await fetch('https://api.gold-api.com/price/XAU');
-        if (!response.ok) throw new Error('金价API请求失败');
+    getWorkerBase() {
+        // Worker地址 - 部署后替换为实际Worker域名
+        return localStorage.getItem('workerApi') || '';
+    }
+    
+    async fetchSinaGold(symbols = 'au9999,au9995') {
+        const base = this.getWorkerBase();
+        if (!base) {
+            // 回退到gold-api
+            return this.fetchFallbackGold();
+        }
+        const response = await fetch(`${base}/api/gold?symbols=${symbols}`);
+        if (!response.ok) throw new Error('新浪财经API请求失败');
         return await response.json();
     }
     
-    async fetchUSDCNY() {
-        const response = await fetch('https://open.er-api.com/v6/latest/USD');
-        if (!response.ok) throw new Error('汇率API请求失败');
-        const data = await response.json();
-        return data.rates.CNY;
+    async fetchFallbackGold() {
+        const response = await fetch('https://api.gold-api.com/price/XAU');
+        if (!response.ok) throw new Error('金价API请求失败');
+        const goldData = await response.json();
+        const rateResp = await fetch('https://open.er-api.com/v6/latest/USD');
+        const rateData = await rateResp.json();
+        const usdCny = rateData.rates.CNY;
+        const pricePerGram = (goldData.price * usdCny) / 31.1035;
+        
+        return {
+            au9999: {
+                name: 'Au99.99',
+                price: pricePerGram,
+                open: pricePerGram,
+                prevClose: pricePerGram,
+                high: pricePerGram,
+                low: pricePerGram,
+                change: 0,
+                changePercent: 0,
+                time: new Date(goldData.updatedAt).toLocaleTimeString('zh-CN'),
+                goldUSD: goldData.price,
+                usdCny: usdCny
+            }
+        };
+    }
+    
+    async fetchSinaKLine(symbol = 'au9999', scale = 240, datalen = 100) {
+        const base = this.getWorkerBase();
+        if (!base) return [];
+        const response = await fetch(`${base}/api/gold/kline?symbol=${symbol}&scale=${scale}&datalen=${datalen}`);
+        if (!response.ok) return [];
+        return await response.json();
     }
     
     async loadPriceData() {
         try {
-            const [goldData, usdCny] = await Promise.all([
-                this.fetchGoldPriceUSD(),
-                this.fetchUSDCNY()
-            ]);
+            const data = await this.fetchSinaGold('au9999,au9995');
             
-            const goldUSD = goldData.price;
-            const pricePerOunce = goldUSD * usdCny;
-            const pricePerGram = pricePerOunce / 31.1035;
-            const updatedAt = new Date(goldData.updatedAt);
-            const timeStr = updatedAt.toLocaleTimeString('zh-CN');
-            const dateStr = updatedAt.toLocaleDateString('zh-CN');
+            const au9999 = data.au9999 || {};
+            const au9995 = data.au9995 || {};
             
-            // 计算涨跌（与上次价格对比）
-            let change1 = 0, changePercent1 = 0;
-            if (this.lastPrice) {
-                change1 = pricePerGram - this.lastPrice;
-                changePercent1 = (change1 / this.lastPrice) * 100;
-            }
+            const price1 = au9999.price || 0;
+            const price2 = au9995.price || (price1 > 0 ? price1 - 2 : 0);
+            const price3 = price1 > 0 ? price1 + 118 : 0; // 品牌零售价参考
             
-            // Au99.95 比 Au99.99 低约2-5元/克（纯度差异）
-            const price2 = pricePerGram - 3;
-            const change2 = change1 * 0.95;
-            
-            // 品牌零售价 = 基础金价 + 品牌溢价（约80-150元/克）
-            const price3 = pricePerGram + 118;
-            const change3 = change1 + (Math.random() - 0.5) * 2;
+            const timeStr = au9999.time || new Date().toLocaleTimeString('zh-CN');
             
             this.priceData = {
                 'Au99.99': {
-                    price: pricePerGram,
-                    change: change1,
-                    changePercent: changePercent1,
+                    price: price1,
+                    change: au9999.change || 0,
+                    changePercent: au9999.changePercent || 0,
                     time: timeStr,
-                    date: dateStr
+                    date: new Date().toLocaleDateString('zh-CN'),
+                    high: au9999.high || price1,
+                    low: au9999.low || price1,
+                    open: au9999.open || price1,
+                    prevClose: au9999.prevClose || price1
                 },
                 'Au99.95': {
                     price: price2,
-                    change: change2,
-                    changePercent: (change2 / price2) * 100,
+                    change: au9995.change || 0,
+                    changePercent: au9995.changePercent || 0,
                     time: timeStr,
-                    date: dateStr
+                    date: new Date().toLocaleDateString('zh-CN')
                 },
                 'retail': {
                     price: price3,
-                    change: change3,
-                    changePercent: (change3 / price3) * 100,
+                    change: au9999.change || 0,
+                    changePercent: price1 > 0 ? ((au9999.change || 0) / price3) * 100 : 0,
                     time: timeStr,
-                    date: dateStr
+                    date: new Date().toLocaleDateString('zh-CN')
                 },
                 _meta: {
-                    goldUSD: goldUSD,
-                    usdCny: usdCny
+                    goldUSD: au9999.goldUSD || 0,
+                    usdCny: au9999.usdCny || 0
                 }
             };
             
@@ -232,6 +280,30 @@ class GoldPriceApp {
     }
     
     async loadChartData() {
+        // 尝试从新浪获取真实K线数据
+        const base = this.getWorkerBase();
+        if (base) {
+            try {
+                const scaleMap = { '1d': 5, '1w': 30, '1m': 240, '3m': 240, '6m': 240, '1y': 1440 };
+                const scale = scaleMap[this.currentPeriod] || 240;
+                const datalenMap = { '1d': 48, '1w': 168, '1m': 30, '3m': 90, '6m': 180, '1y': 365 };
+                const datalen = datalenMap[this.currentPeriod] || 100;
+                
+                const klineData = await this.fetchSinaKLine('au9999', scale, datalen);
+                if (klineData && klineData.length > 0) {
+                    const chartData = klineData.map(item => ({
+                        time: new Date(item.day),
+                        price: parseFloat(item.close)
+                    }));
+                    this.updateChart(chartData);
+                    return;
+                }
+            } catch (e) {
+                console.log('Sina KLine API failed, using generated data');
+            }
+        }
+        
+        // 回退到模拟数据
         const data = this.generateChartData();
         this.updateChart(data);
     }

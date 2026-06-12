@@ -413,6 +413,17 @@
             </div>
         </section>
         
+        <section class="alert-section" style="margin-top: 20px;">
+            <h2>⚙️ 数据源设置</h2>
+            <p style="color: #666; margin-bottom: 15px;">配置Worker API地址以使用新浪财经实时数据（可选，不配置则使用备用数据源）</p>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="text" id="workerUrl" placeholder="例如: https://your-worker.workers.dev" 
+                    style="flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 0.95rem;">
+                <button class="alert-btn" id="saveWorker" style="margin: 0;">保存</button>
+            </div>
+            <div id="workerStatus" style="margin-top: 10px; font-size: 0.85rem; color: #666;"></div>
+        </section>
+        
         <footer>
             <p>数据仅供参考，实际交易价格以市场为准</p>
             <p>最后更新: <span id="lastUpdate">--</span></p>
