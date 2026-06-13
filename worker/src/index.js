@@ -1,6 +1,7 @@
-import { handleGithubAuth } from './auth/github.js';
-import { handleGiteeAuth } from './auth/gitee.js';
-import { getSession, clearSession } from './auth/session.js';
+import { handleRegister } from './auth/register.js';
+import { handleLogin } from './auth/login.js';
+import { getSession, handleLogout } from './auth/session.js';
+import { handleResetRequest, handleAdminResetRequests, handleAdminApproveReset, handleAdminRejectReset } from './auth/admin.js';
 import { handleProfile } from './handlers/profile.js';
 import { handleAlerts } from './handlers/alerts.js';
 import { handleGoldHistory, saveGoldHistory } from './handlers/gold.js';
@@ -17,42 +18,53 @@ export default {
     }
 
     try {
-      if (path === '/api/auth/github') {
-        return handleGithubAuth(request, env);
+      // 公开接口
+      if (path === '/api/auth/register' && method === 'POST') {
+        return await handleRegister(request, env);
       }
-      if (path === '/api/auth/github/callback') {
-        return handleGithubAuth(request, env, true);
+      if (path === '/api/auth/login' && method === 'POST') {
+        return await handleLogin(request, env);
       }
-      if (path === '/api/auth/gitee') {
-        return handleGiteeAuth(request, env);
+      if (path === '/api/auth/reset-request' && method === 'POST') {
+        return await handleResetRequest(request, env);
       }
-      if (path === '/api/auth/gitee/callback') {
-        return handleGiteeAuth(request, env, true);
+      if (path.startsWith('/api/gold/history')) {
+        return await handleGoldHistory(request, env);
       }
 
+      // 需要登录的接口
       const session = await getSession(request, env);
 
       if (path === '/api/auth/me') {
         if (!session) return jsonResponse({ error: '未登录' }, 401);
         return jsonResponse({ user: session.user });
       }
-
       if (path === '/api/auth/logout' && method === 'POST') {
-        return await clearSession(request, env);
+        return await handleLogout(request, env);
       }
-
       if (path.startsWith('/api/user/profile')) {
         if (!session) return jsonResponse({ error: '未登录' }, 401);
         return await handleProfile(request, env, session);
       }
-
       if (path.startsWith('/api/alerts')) {
         if (!session) return jsonResponse({ error: '未登录' }, 401);
         return await handleAlerts(request, env, session);
       }
 
-      if (path.startsWith('/api/gold/history')) {
-        return await handleGoldHistory(request, env);
+      // 管理员接口
+      if (path === '/api/admin/reset-requests') {
+        if (!session) return jsonResponse({ error: '未登录' }, 401);
+        return await handleAdminResetRequests(request, env, session);
+      }
+      const approveMatch = path.match(/^\/api\/admin\/reset-requests\/(\d+)\/approve$/);
+      if (approveMatch) {
+        if (!session) return jsonResponse({ error: '未登录' }, 401);
+        return await handleAdminApproveReset(request, env, session, parseInt(approveMatch[1]));
+      }
+      const rejectMatch = path.match(/^\/api\/admin\/reset-requests\/(\d+)\/reject$/);
+      if (rejectMatch) {
+        if (!session) return jsonResponse({ error: '未登录' }, 401);
+        return await handleAdminRejectReset(request, env, session, parseInt(rejectMatch[1]));
       }
 
       return jsonResponse({ error: 'Not Found' }, 404);

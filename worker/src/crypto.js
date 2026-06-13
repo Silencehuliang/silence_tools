@@ -1,36 +1,44 @@
-export async function encrypt(data, keyBase64) {
-  const key = await importKey(keyBase64);
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encoded = new TextEncoder().encode(JSON.stringify(data));
-  
-  const cipher = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    encoded
-  );
+const ITERATIONS = 100000;
+const HASH_LENGTH = 32;
 
-  return JSON.stringify({
-    iv: arrayToBase64(iv),
-    data: arrayToBase64(new Uint8Array(cipher))
-  });
+export async function hashPassword(password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const hash = await pbkdf2(password, salt);
+  return {
+    hash: arrayToBase64(hash),
+    salt: arrayToBase64(salt)
+  };
 }
 
-export async function decrypt(encryptedStr, keyBase64) {
-  const { iv, data } = JSON.parse(encryptedStr);
-  const key = await importKey(keyBase64);
-  
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: base64ToArray(iv) },
-    key,
-    base64ToArray(data)
-  );
-
-  return JSON.parse(new TextDecoder().decode(decrypted));
+export async function verifyPassword(password, hashBase64, saltBase64) {
+  const salt = base64ToArray(saltBase64);
+  const expectedHash = base64ToArray(hashBase64);
+  const actualHash = await pbkdf2(password, salt);
+  return arrayToBase64(actualHash) === arrayToBase64(expectedHash);
 }
 
-async function importKey(keyBase64) {
-  const raw = base64ToArray(keyBase64);
-  return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+async function pbkdf2(password, salt) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: salt,
+      iterations: ITERATIONS,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    HASH_LENGTH * 8
+  );
+
+  return new Uint8Array(bits);
 }
 
 function arrayToBase64(arr) {
