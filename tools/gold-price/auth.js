@@ -8,7 +8,6 @@ class AuthManager {
   async init() {
     await this.checkAuth();
     this.ready = true;
-    this.renderAll();
   }
 
   async checkAuth() {
@@ -224,8 +223,8 @@ class AuthManager {
       if (res.ok) {
         this.user = data.user;
         this.closeModal();
-        this.renderAll();
-        location.reload();
+        // 强制刷新页面确保状态更新
+        window.location.href = window.location.pathname + '?t=' + Date.now();
       } else {
         errEl.textContent = data.error || '登录失败';
         errEl.style.display = 'block';
@@ -261,8 +260,7 @@ class AuthManager {
       if (res.ok) {
         this.user = data.user;
         this.closeModal();
-        this.renderAll();
-        location.reload();
+        window.location.href = window.location.pathname + '?t=' + Date.now();
       } else {
         errEl.textContent = data.error || '注册失败';
         errEl.style.display = 'block';
