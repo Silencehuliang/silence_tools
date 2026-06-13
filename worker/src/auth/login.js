@@ -41,7 +41,7 @@ export async function handleLogin(request, env) {
       user: { id: user.id, username: user.username, role: user.role }
     });
     response.headers.append('Set-Cookie',
-      `session=${session.token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`
+      `session=${session.token}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=604800`
     );
     return response;
 

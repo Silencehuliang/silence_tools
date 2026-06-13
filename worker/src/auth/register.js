@@ -52,7 +52,7 @@ export async function handleRegister(request, env) {
       user: { id: result.meta.last_row_id, username, role: 'user' }
     });
     response.headers.append('Set-Cookie',
-      `session=${session.token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`
+      `session=${session.token}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=604800`
     );
     return response;
 

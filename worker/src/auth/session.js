@@ -44,6 +44,6 @@ export async function handleLogout(request, env) {
   }
 
   const headers = new Headers({ 'Content-Type': 'application/json' });
-  headers.append('Set-Cookie', 'session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');
+  headers.append('Set-Cookie', 'session=; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=0');
   return new Response(JSON.stringify({ success: true }), { headers });
 }
