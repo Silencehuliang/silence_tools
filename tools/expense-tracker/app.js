@@ -18,11 +18,13 @@ class ExpenseTracker {
     if (!auth.user) {
       document.getElementById('authRequired').style.display = 'block';
       document.getElementById('mainApp').style.display = 'none';
+      document.getElementById('tabBar').style.display = 'none';
       this.renderUserInfo();
       return;
     }
     document.getElementById('authRequired').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
+    document.getElementById('tabBar').style.display = 'flex';
     this.renderUserInfo();
     this.bindTabs();
     await this.loadFamilyInfo();
@@ -39,12 +41,11 @@ class ExpenseTracker {
   renderUserInfo() {
     const container = document.getElementById('userContainer');
     if (!auth.user) {
-      container.innerHTML = '<span style="color:#999">未登录</span>';
+      container.innerHTML = '<span style="color:rgba(255,255,255,0.7); font-size:13px;">未登录</span>';
       return;
     }
     container.innerHTML = `
-      <div class="user-avatar">${auth.user.username[0].toUpperCase()}</div>
-      <span>${auth.user.username}</span>
+      <span class="user-name">${auth.user.username}</span>
       <button class="logout-btn" onclick="app.logout()">退出</button>
     `;
   }
@@ -150,53 +151,63 @@ class ExpenseTracker {
       const monthCount = stats.month_count || 0;
 
       container.innerHTML = `
+        <div class="quick-add" onclick="app.showView('add')">
+          <div class="icon">✏️</div>
+          <div class="text">
+            <div class="title">记一笔</div>
+            <div class="sub">快速记录消费</div>
+          </div>
+          <div style="font-size:20px;">→</div>
+        </div>
+
         <div class="stat-cards">
           <div class="stat-card">
             <div class="label">本月支出</div>
             <div class="value">¥${monthTotal.toFixed(2)}</div>
-            <div class="sub">${monthCount} 笔消费</div>
+            <div class="sub">${monthCount} 笔</div>
           </div>
           <div class="stat-card">
             <div class="label">家庭成员</div>
             <div class="value">${this.members.length}</div>
             <div class="sub">${this.family.name}</div>
           </div>
-          <div class="stat-card">
-            <div class="label">消费分类</div>
-            <div class="value">${this.categories.length}</div>
-            <div class="sub">个可用分类</div>
-          </div>
         </div>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-          <div class="card">
-            <h2>分类占比</h2>
-            <div class="chart-container" style="height:250px;">
-              <canvas id="overviewPieChart"></canvas>
-            </div>
+        ${stats.category_breakdown.length > 0 ? `
+        <div class="card">
+          <h2>分类占比</h2>
+          <div class="chart-container">
+            <canvas id="overviewPieChart"></canvas>
           </div>
-          <div class="card">
-            <h2>最近消费</h2>
-            <div class="expense-list">
-              ${recentData.expenses.length === 0 ? '<div class="empty-state"><p>暂无消费记录</p></div>' :
-                recentData.expenses.map(e => `
-                  <div class="expense-item">
-                    <div class="expense-icon">${e.category_icon || '📦'}</div>
-                    <div class="expense-info">
-                      <div class="top">
-                        <span class="category-name">${e.category_name}</span>
-                        <span class="amount">-¥${e.amount.toFixed(2)}</span>
-                      </div>
-                      <div class="bottom">
-                        <span>${e.expense_date}</span>
-                        <span>${e.username}</span>
-                        ${e.description ? `<span>${e.description}</span>` : ''}
-                      </div>
+        </div>
+        ` : ''}
+
+        <div class="card">
+          <h2>最近消费</h2>
+          <div class="recent-list">
+            ${recentData.expenses.length === 0 ? '<div class="empty-state"><div class="icon">📝</div><p>暂无消费记录</p></div>' :
+              recentData.expenses.map(e => `
+                <div class="expense-item">
+                  <div class="expense-icon">${e.category_icon || '📦'}</div>
+                  <div class="expense-info">
+                    <div class="top">
+                      <span class="category-name">${e.category_name}</span>
+                      <span class="amount">-¥${e.amount.toFixed(2)}</span>
                     </div>
+                    <div class="bottom">
+                      <span>${e.expense_date}</span>
+                      <span>${e.username}</span>
+                    </div>
+                    ${e.description ? `<div class="desc">${e.description}</div>` : ''}
                   </div>
-                `).join('')}
-            </div>
+                </div>
+              `).join('')}
           </div>
+          ${recentData.total > 5 ? `
+          <div style="text-align:center; margin-top:12px;">
+            <button class="btn btn-secondary btn-sm" onclick="app.showView('list')">查看全部</button>
+          </div>
+          ` : ''}
         </div>
       `;
 
@@ -204,7 +215,7 @@ class ExpenseTracker {
         this.renderPieChart('overviewPieChart', stats.category_breakdown);
       }
     } catch (e) {
-      container.innerHTML = `<div class="card"><p class="error">加载失败: ${e.message}</p></div>`;
+      container.innerHTML = `<div class="card"><div class="empty-state"><div class="icon">❌</div><p>加载失败: ${e.message}</p></div></div>`;
     }
   }
 
@@ -232,46 +243,69 @@ class ExpenseTracker {
       <div class="card">
         <h2>记录支出</h2>
         <div class="form-group">
-          <label>金额 (元)</label>
-          <input type="number" id="expenseAmount" placeholder="0.00" step="0.01" min="0.01">
+          <label>金额</label>
+          <input type="number" id="expenseAmount" placeholder="0.00" step="0.01" min="0.01" inputmode="decimal" style="font-size:24px; font-weight:600; text-align:center;">
         </div>
+      </div>
+
+      <div class="card">
+        <h2>选择分类</h2>
         <div class="form-group">
           <label>一级分类</label>
-          <div class="category-grid" id="parentCategoryGrid">
-            ${this.categories.map(c => `
-              <div class="category-item parent-category" data-id="${c.id}">
-                <div class="icon">${c.icon || '📦'}</div>
-                <div class="name">${c.name}</div>
-              </div>
-            `).join('')}
+          <div class="category-scroll">
+            <div class="category-grid" id="parentCategoryGrid">
+              ${this.categories.map(c => `
+                <div class="category-item parent-category" data-id="${c.id}">
+                  <div class="icon">${c.icon || '📦'}</div>
+                  <div class="name">${c.name}</div>
+                </div>
+              `).join('')}
+            </div>
           </div>
         </div>
         <div class="form-group" id="childCategoryGroup" style="display:${firstParent?.children?.length ? 'block' : 'none'}">
           <label>二级分类</label>
-          <div class="category-grid" id="childCategoryGrid">
-            ${firstParent?.children?.map(c => `
-              <div class="category-item child-category" data-id="${c.id}">
-                <div class="icon">${c.icon || '📦'}</div>
-                <div class="name">${c.name}</div>
-              </div>
-            `).join('') || ''}
+          <div class="category-scroll">
+            <div class="category-grid" id="childCategoryGrid">
+              ${firstParent?.children?.map(c => `
+                <div class="category-item child-category" data-id="${c.id}">
+                  <div class="icon">${c.icon || '📦'}</div>
+                  <div class="name">${c.name}</div>
+                </div>
+              `).join('') || ''}
+            </div>
           </div>
         </div>
+      </div>
+
+      <div class="card">
         <div class="form-group">
           <label>日期</label>
           <input type="date" id="expenseDate" value="${new Date().toISOString().slice(0, 10)}">
         </div>
         <div class="form-group">
           <label>备注</label>
-          <textarea id="expenseDesc" placeholder="可选备注说明"></textarea>
+          <textarea id="expenseDesc" placeholder="添加备注..." rows="2"></textarea>
         </div>
+        ${this.tags.length > 0 ? `
         <div class="form-group">
           <label>标签</label>
           <div class="tag-chips" id="tagChips">
             ${this.tags.map(t => `<div class="tag-chip" data-id="${t.id}">${t.name}</div>`).join('')}
-            <div class="tag-add" onclick="app.showAddTagDialog()">+ 新标签</div>
+            <div class="tag-add" onclick="app.showAddTagDialog()">+</div>
           </div>
         </div>
+        ` : `
+        <div class="form-group">
+          <label>标签</label>
+          <div class="tag-chips" id="tagChips">
+            <div class="tag-add" onclick="app.showAddTagDialog()">+ 添加标签</div>
+          </div>
+        </div>
+        `}
+      </div>
+
+      <div style="padding:0 0 20px;">
         <button class="btn btn-primary" onclick="app.submitExpense()">保存账单</button>
       </div>
     `;
@@ -373,15 +407,14 @@ class ExpenseTracker {
   async renderExpenseList() {
     const container = document.getElementById('view-list');
     container.innerHTML = `
-      <div class="card">
-        <h2>消费账单</h2>
-        <div class="filter-bar">
-          <div class="month-picker">
-            <button onclick="app.changeMonth(-1)">◀</button>
-            <span id="currentMonth">${this.currentMonth}</span>
-            <button onclick="app.changeMonth(1)">▶</button>
-          </div>
-          <select id="filterCategory">
+      <div class="filter-section">
+        <div class="month-nav">
+          <button onclick="app.changeMonth(-1)">◀</button>
+          <span class="current-month" id="currentMonth">${this.currentMonth}</span>
+          <button onclick="app.changeMonth(1)">▶</button>
+        </div>
+        <div class="filter-chips">
+          <select class="filter-chip" id="filterCategory" onchange="app.loadExpenses()">
             <option value="">全部分类</option>
             ${this.categories.map(p => `
               <optgroup label="${p.icon} ${p.name}">
@@ -389,14 +422,14 @@ class ExpenseTracker {
               </optgroup>
             `).join('')}
           </select>
-          <select id="filterUser">
+          <select class="filter-chip" id="filterUser" onchange="app.loadExpenses()">
             <option value="">全部成员</option>
             ${this.members.map(m => `<option value="${m.user_id}">${m.username}</option>`).join('')}
           </select>
-          <input type="text" id="filterKeyword" placeholder="搜索备注">
-          <button class="btn btn-primary btn-sm" onclick="app.loadExpenses()">筛选</button>
-          <button class="btn btn-secondary btn-sm" onclick="app.exportCSV()">导出CSV</button>
+          <button class="filter-chip" onclick="app.exportCSV()">📥 导出</button>
         </div>
+      </div>
+      <div class="card">
         <div id="expenseListContainer"><p>加载中...</p></div>
       </div>
     `;
@@ -415,21 +448,19 @@ class ExpenseTracker {
     const container = document.getElementById('expenseListContainer');
     const categoryId = document.getElementById('filterCategory')?.value;
     const userId = document.getElementById('filterUser')?.value;
-    const keyword = document.getElementById('filterKeyword')?.value;
 
     let url = `/api/expenses?month=${this.currentMonth}&page=${page}&page_size=20`;
     if (categoryId) url += `&category_id=${categoryId}`;
     if (userId) url += `&user_id=${userId}`;
-    if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
 
     try {
       const data = await this.api(url);
       const total = data.expenses.reduce((s, e) => s + e.amount, 0);
 
       container.innerHTML = `
-        <div style="padding:10px; background:#f5f5f5; border-radius:8px; margin-bottom:15px; display:flex; justify-content:space-between;">
-          <span>共 ${data.total} 笔</span>
-          <span style="font-weight:bold; color:#f44336;">总计: ¥${total.toFixed(2)}</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding:8px 0;">
+          <span style="font-size:13px; color:#999;">共 ${data.total} 笔</span>
+          <span style="font-weight:600; color:#f44336; font-size:16px;">¥${total.toFixed(2)}</span>
         </div>
         <div class="expense-list">
           ${data.expenses.length === 0 ? '<div class="empty-state"><div class="icon">📝</div><p>暂无消费记录</p></div>' :
@@ -444,13 +475,13 @@ class ExpenseTracker {
                   <div class="bottom">
                     <span>${e.expense_date}</span>
                     <span>${e.username}</span>
-                    ${e.description ? `<span>${e.description}</span>` : ''}
                   </div>
+                  ${e.description ? `<div class="desc">${e.description}</div>` : ''}
                   ${e.tags.length ? `<div class="tags">${e.tags.map(t => `<span class="tag">${t.name}</span>`).join('')}</div>` : ''}
                 </div>
                 <div class="expense-actions">
-                  <button class="btn btn-secondary btn-sm" onclick="app.editExpense(${e.id})">编辑</button>
-                  <button class="btn btn-danger btn-sm" onclick="app.deleteExpense(${e.id})">删除</button>
+                  <button class="btn btn-secondary btn-sm" onclick="app.editExpense(${e.id})" style="background:#f0f0f0; color:#666;">✏️</button>
+                  <button class="btn btn-danger btn-sm" onclick="app.deleteExpense(${e.id})" style="background:#ffebee; color:#c62828;">🗑️</button>
                 </div>
               </div>
             `).join('')}
@@ -458,13 +489,13 @@ class ExpenseTracker {
         ${data.total > 20 ? `
           <div class="pagination">
             ${page > 1 ? `<button class="btn btn-secondary btn-sm" onclick="app.loadExpenses(${page - 1})">上一页</button>` : ''}
-            <span>第 ${page} 页</span>
+            <span style="font-size:13px; color:#999;">第 ${page} 页</span>
             ${data.expenses.length === 20 ? `<button class="btn btn-secondary btn-sm" onclick="app.loadExpenses(${page + 1})">下一页</button>` : ''}
           </div>
         ` : ''}
       `;
     } catch (e) {
-      container.innerHTML = `<p class="error">加载失败: ${e.message}</p>`;
+      container.innerHTML = `<div class="empty-state"><div class="icon">❌</div><p>加载失败: ${e.message}</p></div>`;
     }
   }
 
@@ -521,7 +552,7 @@ class ExpenseTracker {
     container.innerHTML = `
       <div class="card">
         <h2>消费统计</h2>
-        <div style="display:flex; gap:10px; margin-bottom:20px;">
+        <div class="stats-selector">
           <select id="statsYear" onchange="app.loadStats()">
             ${[0,1,2].map(i => {
               const y = new Date().getFullYear() - i;
@@ -556,27 +587,32 @@ class ExpenseTracker {
             <div class="value">¥${(data.month_total || 0).toFixed(2)}</div>
             <div class="sub">${data.month_count || 0} 笔</div>
           </div>
+          <div class="stat-card">
+            <div class="label">平均消费</div>
+            <div class="value">¥${data.month_count ? ((data.month_total || 0) / data.month_count).toFixed(2) : '0.00'}</div>
+            <div class="sub">每笔</div>
+          </div>
         </div>
 
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px;">
-          <div>
-            <h3 style="margin-bottom:10px;">月度趋势</h3>
-            <div class="chart-container" style="height:250px;">
-              <canvas id="trendChart"></canvas>
-            </div>
+        <div class="card">
+          <h2>月度趋势</h2>
+          <div class="chart-container">
+            <canvas id="trendChart"></canvas>
           </div>
-          <div>
-            <h3 style="margin-bottom:10px;">分类占比</h3>
-            <div class="chart-container" style="height:250px;">
+        </div>
+
+        <div class="chart-row">
+          <div class="card">
+            <h2>分类占比</h2>
+            <div class="chart-container">
               <canvas id="categoryChart"></canvas>
             </div>
           </div>
-        </div>
-
-        <div>
-          <h3 style="margin-bottom:10px;">成员消费对比</h3>
-          <div class="chart-container" style="height:250px;">
-            <canvas id="memberChart"></canvas>
+          <div class="card">
+            <h2>成员对比</h2>
+            <div class="chart-container">
+              <canvas id="memberChart"></canvas>
+            </div>
           </div>
         </div>
       `;
@@ -586,9 +622,13 @@ class ExpenseTracker {
           type: 'bar',
           data: {
             labels: data.monthly_trend.map(d => d.month),
-            datasets: [{ label: '支出', data: data.monthly_trend.map(d => d.total), backgroundColor: '#4CAF50' }]
+            datasets: [{ label: '支出', data: data.monthly_trend.map(d => d.total), backgroundColor: '#4CAF50', borderRadius: 6 }]
           },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+          options: { 
+            responsive: true, maintainAspectRatio: false, 
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { display: false } }, y: { beginAtZero: true } }
+          }
         });
       }
 
@@ -597,9 +637,9 @@ class ExpenseTracker {
           type: 'doughnut',
           data: {
             labels: data.category_breakdown.map(d => d.category_name),
-            datasets: [{ data: data.category_breakdown.map(d => d.total), backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF', '#7BC8A4'] }]
+            datasets: [{ data: data.category_breakdown.map(d => d.total), backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF', '#7BC8A4', '#E7E9ED', '#F7464A'] }]
           },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8, font: { size: 11 } } } } }
         });
       }
 
@@ -608,13 +648,13 @@ class ExpenseTracker {
           type: 'bar',
           data: {
             labels: data.member_breakdown.map(d => d.username),
-            datasets: [{ label: '支出', data: data.member_breakdown.map(d => d.total), backgroundColor: '#2196F3' }]
+            datasets: [{ label: '支出', data: data.member_breakdown.map(d => d.total), backgroundColor: '#2196F3', borderRadius: 6 }]
           },
           options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } } }
         });
       }
     } catch (e) {
-      container.innerHTML = `<p class="error">加载失败: ${e.message}</p>`;
+      container.innerHTML = `<div class="empty-state"><div class="icon">❌</div><p>加载失败: ${e.message}</p></div>`;
     }
   }
 
@@ -625,21 +665,24 @@ class ExpenseTracker {
     if (!this.family) {
       container.innerHTML = `
         <div class="card">
-          <h2>创建或加入家庭</h2>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
-            <div>
-              <h3 style="margin-bottom:15px;">创建新家庭</h3>
+          <h2>开始使用</h2>
+          <p style="color:#999; margin-bottom:20px; font-size:13px;">创建或加入一个家庭来开始记账</p>
+          <div class="family-create">
+            <div class="family-create-section">
+              <div class="icon">🏠</div>
+              <h3>创建新家庭</h3>
               <div class="form-group">
                 <label>家庭名称</label>
                 <input type="text" id="familyName" placeholder="例如: 我的家">
               </div>
               <button class="btn btn-primary" onclick="app.createFamily()">创建家庭</button>
             </div>
-            <div>
-              <h3 style="margin-bottom:15px;">加入已有家庭</h3>
+            <div class="family-create-section">
+              <div class="icon">🔗</div>
+              <h3>加入已有家庭</h3>
               <div class="form-group">
                 <label>邀请码</label>
-                <input type="text" id="inviteCode" placeholder="输入6位邀请码" maxlength="6">
+                <input type="text" id="inviteCode" placeholder="输入6位邀请码" maxlength="6" style="text-align:center; letter-spacing:4px; font-size:18px; font-weight:600;">
               </div>
               <button class="btn btn-primary" onclick="app.joinFamily()">加入家庭</button>
             </div>
@@ -650,84 +693,84 @@ class ExpenseTracker {
     }
 
     container.innerHTML = `
-      <div class="settings-section">
-        <div class="card">
-          <h2>家庭信息</h2>
-          <div class="family-info">
-            <div>
-              <strong>${this.family.name}</strong>
-              <span style="color:#888; margin-left:10px;">${this.members.length} 位成员</span>
-            </div>
-            <div>
-              <span style="color:#888;">邀请码:</span>
-              <span class="invite-code" id="inviteCodeDisplay">${this.family.invite_code}</span>
-              <button class="copy-btn" onclick="app.copyInviteCode()">复制</button>
-              <button class="btn btn-secondary btn-sm" onclick="app.regenerateCode()">重新生成</button>
-            </div>
+      <div class="card settings-card">
+        <div class="family-header">
+          <span class="family-name">${this.family.name}</span>
+          <span class="member-count">${this.members.length} 人</span>
+        </div>
+        
+        <div class="invite-section">
+          <div class="invite-label">邀请码（分享给家人加入）</div>
+          <div class="invite-row">
+            <div class="invite-code" id="inviteCodeDisplay">${this.family.invite_code}</div>
+            <button class="copy-btn" onclick="app.copyInviteCode()" title="复制">📋</button>
+            <button class="refresh-btn" onclick="app.regenerateCode()" title="重新生成">🔄</button>
           </div>
-          <h3 style="margin: 20px 0 10px;">成员列表</h3>
-          <div class="member-list">
-            ${this.members.map(m => `
-              <div class="member-item">
-                <div class="avatar">${m.username[0].toUpperCase()}</div>
-                <span style="flex:1;">${m.username}</span>
-                <span class="role ${m.role}">${m.role === 'owner' ? '创建者' : '成员'}</span>
-                <span style="color:#999; font-size:0.85rem;">加入于 ${m.joined_at.slice(0, 10)}</span>
+        </div>
+
+        <h3>成员列表</h3>
+        <div class="member-list">
+          ${this.members.map(m => `
+            <div class="member-item">
+              <div class="member-avatar">${m.username[0].toUpperCase()}</div>
+              <div class="member-info">
+                <div class="member-name">${m.username}</div>
+                <div class="member-join-date">加入于 ${m.joined_at.slice(0, 10)}</div>
               </div>
-            `).join('')}
-          </div>
+              <span class="member-role ${m.role}">${m.role === 'owner' ? '创建者' : '成员'}</span>
+            </div>
+          `).join('')}
         </div>
       </div>
 
-      <div class="settings-section">
-        <div class="card">
-          <h2>分类管理</h2>
-          <div style="display:flex; gap:10px; margin-bottom:15px;">
-            <select id="newCategoryParent" style="padding:10px; border:2px solid #ddd; border-radius:8px;">
-              <option value="">作为一级分类</option>
-              ${this.categories.filter(c => c.is_system).map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('')}
-            </select>
-            <input type="text" id="newCategoryName" placeholder="分类名称" style="flex:1; padding:10px; border:2px solid #ddd; border-radius:8px;">
-            <input type="text" id="newCategoryIcon" placeholder="图标" style="width:80px; padding:10px; border:2px solid #ddd; border-radius:8px;">
-            <button class="btn btn-primary btn-sm" onclick="app.addCategory()">添加</button>
-          </div>
-          <div class="category-manage">
-            ${this.categories.map(p => `
-              <div>
-                <div class="category-manage-item" style="font-weight:bold; background:#f0f0f0;">
-                  <span class="icon">${p.icon || '📦'}</span>
-                  <span class="name">${p.name}</span>
-                  <span class="badge">${p.is_system ? '系统' : '自定义'}</span>
-                </div>
+      <div class="card settings-card">
+        <h3>分类管理</h3>
+        <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+          <select id="newCategoryParent" style="flex:1; min-width:120px; padding:10px; border:1.5px solid #e0e0e0; border-radius:10px; font-size:14px; background:#fafafa;">
+            <option value="">一级分类</option>
+            ${this.categories.filter(c => c.is_system).map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('')}
+          </select>
+          <input type="text" id="newCategoryName" placeholder="名称" style="width:100px; padding:10px; border:1.5px solid #e0e0e0; border-radius:10px; font-size:14px; background:#fafafa;">
+          <input type="text" id="newCategoryIcon" placeholder="图标" style="width:60px; padding:10px; border:1.5px solid #e0e0e0; border-radius:10px; font-size:14px; text-align:center; background:#fafafa;">
+          <button class="btn btn-primary btn-sm" onclick="app.addCategory()" style="width:auto; padding:10px 16px;">添加</button>
+        </div>
+        <div class="category-manage">
+          ${this.categories.map(p => `
+            <div class="category-group">
+              <div class="category-parent">
+                <span class="icon">${p.icon || '📦'}</span>
+                <span>${p.name}</span>
+              </div>
+              <div class="category-children">
                 ${p.children.map(c => `
-                  <div class="category-manage-item" style="padding-left:40px;">
+                  <div class="category-child">
                     <span class="icon">${c.icon || '📦'}</span>
                     <span class="name">${c.name}</span>
-                    ${c.is_system ? '<span class="badge">系统</span>' : `<button class="delete-btn" onclick="app.deleteCategory(${c.id})">删除</button>`}
+                    <div class="actions">
+                      ${c.is_system ? '<span class="badge">系统</span>' : `<button class="delete-btn" onclick="app.deleteCategory(${c.id})">删除</button>`}
+                    </div>
                   </div>
                 `).join('')}
               </div>
-            `).join('')}
-          </div>
+            </div>
+          `).join('')}
         </div>
       </div>
 
-      <div class="settings-section">
-        <div class="card">
-          <h2>标签管理</h2>
-          <div style="display:flex; gap:10px; margin-bottom:15px;">
-            <input type="text" id="newTagName" placeholder="标签名称" style="flex:1; padding:10px; border:2px solid #ddd; border-radius:8px;">
-            <button class="btn btn-primary btn-sm" onclick="app.addTag()">添加</button>
-          </div>
-          <div class="tag-chips">
-            ${this.tags.map(t => `
-              <div class="tag-chip" style="cursor:default;">
-                ${t.name}
-                <span onclick="app.deleteTag(${t.id})" style="margin-left:8px; cursor:pointer; color:#f44336;">×</span>
-              </div>
-            `).join('')}
-            ${this.tags.length === 0 ? '<span style="color:#999;">暂无自定义标签</span>' : ''}
-          </div>
+      <div class="card settings-card">
+        <h3>标签管理</h3>
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+          <input type="text" id="newTagName" placeholder="新标签名称" style="flex:1; padding:10px; border:1.5px solid #e0e0e0; border-radius:10px; font-size:14px; background:#fafafa;">
+          <button class="btn btn-primary btn-sm" onclick="app.addTag()" style="width:auto; padding:10px 16px;">添加</button>
+        </div>
+        <div class="tag-chips">
+          ${this.tags.map(t => `
+            <div class="tag-chip" style="cursor:default;">
+              ${t.name}
+              <span onclick="app.deleteTag(${t.id})" style="margin-left:6px; cursor:pointer; color:#f44336; font-weight:bold;">×</span>
+            </div>
+          `).join('')}
+          ${this.tags.length === 0 ? '<span style="color:#999; font-size:13px;">暂无自定义标签</span>' : ''}
         </div>
       </div>
     `;
