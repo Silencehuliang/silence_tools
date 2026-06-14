@@ -29,20 +29,34 @@ async function getCategories(env, userId) {
       'SELECT family_id FROM family_members WHERE user_id = ?'
     ).bind(userId).first();
 
-    const systemCategories = await env.DB.prepare(
-      'SELECT id, name, icon, sort_order, 1 as is_system FROM expense_categories WHERE family_id IS NULL ORDER BY sort_order'
+    // 获取所有系统分类（包括一级和二级）
+    const allSystem = await env.DB.prepare(
+      'SELECT id, name, icon, sort_order, parent_id, 1 as is_system FROM expense_categories WHERE family_id IS NULL ORDER BY sort_order'
     ).all();
 
-    let customCategories = { results: [] };
+    // 获取家庭自定义分类
+    let allCustom = { results: [] };
     if (member) {
-      customCategories = await env.DB.prepare(
-        'SELECT id, name, icon, sort_order, 0 as is_system FROM expense_categories WHERE family_id = ? ORDER BY sort_order'
+      allCustom = await env.DB.prepare(
+        'SELECT id, name, icon, sort_order, parent_id, 0 as is_system FROM expense_categories WHERE family_id = ? ORDER BY sort_order'
       ).bind(member.family_id).all();
     }
 
-    return jsonResponse({
-      categories: [...systemCategories.results, ...customCategories.results]
-    });
+    const all = [...allSystem.results, ...allCustom.results];
+    
+    // 构建二级分类树
+    const parents = all.filter(c => !c.parent_id);
+    const categories = parents.map(p => ({
+      id: p.id,
+      name: p.name,
+      icon: p.icon,
+      is_system: !!p.is_system,
+      children: all
+        .filter(c => c.parent_id === p.id)
+        .map(c => ({ id: c.id, name: c.name, icon: c.icon, is_system: !!c.is_system }))
+    }));
+
+    return jsonResponse({ categories });
   } catch (err) {
     console.error('getCategories error:', err);
     return jsonResponse({ error: '获取分类失败' }, 500);
@@ -51,7 +65,7 @@ async function getCategories(env, userId) {
 
 async function createCategory(request, env, userId) {
   try {
-    const { name, icon } = await request.json();
+    const { name, icon, parent_id } = await request.json();
     if (!name || name.trim().length === 0) {
       return jsonResponse({ error: '分类名称不能为空' }, 400);
     }
@@ -71,15 +85,15 @@ async function createCategory(request, env, userId) {
     }
 
     const maxOrder = await env.DB.prepare(
-      'SELECT MAX(sort_order) as max_order FROM expense_categories WHERE family_id = ?'
-    ).bind(member.family_id).first();
+      'SELECT MAX(sort_order) as max_order FROM expense_categories WHERE family_id = ? AND parent_id ' + (parent_id ? '= ?' : 'IS NULL')
+    ).bind(...(parent_id ? [member.family_id, parent_id] : [member.family_id])).first();
 
     const result = await env.DB.prepare(
-      'INSERT INTO expense_categories (family_id, name, icon, sort_order) VALUES (?, ?, ?, ?)'
-    ).bind(member.family_id, name.trim(), icon || null, (maxOrder.max_order || 0) + 1).run();
+      'INSERT INTO expense_categories (family_id, name, icon, sort_order, parent_id) VALUES (?, ?, ?, ?, ?)'
+    ).bind(member.family_id, name.trim(), icon || null, (maxOrder.max_order || 0) + 1, parent_id || null).run();
 
     return jsonResponse({
-      category: { id: result.meta.last_row_id, name: name.trim(), icon: icon || null, is_system: false }
+      category: { id: result.meta.last_row_id, name: name.trim(), icon: icon || null, is_system: false, parent_id: parent_id || null }
     });
   } catch (err) {
     console.error('createCategory error:', err);

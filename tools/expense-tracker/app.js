@@ -227,6 +227,7 @@ class ExpenseTracker {
   // ========== 记账 ==========
   renderAddExpense() {
     const container = document.getElementById('view-add');
+    const firstParent = this.categories[0];
     container.innerHTML = `
       <div class="card">
         <h2>记录支出</h2>
@@ -235,14 +236,25 @@ class ExpenseTracker {
           <input type="number" id="expenseAmount" placeholder="0.00" step="0.01" min="0.01">
         </div>
         <div class="form-group">
-          <label>分类</label>
-          <div class="category-grid" id="categoryGrid">
+          <label>一级分类</label>
+          <div class="category-grid" id="parentCategoryGrid">
             ${this.categories.map(c => `
-              <div class="category-item" data-id="${c.id}">
+              <div class="category-item parent-category" data-id="${c.id}">
                 <div class="icon">${c.icon || '📦'}</div>
                 <div class="name">${c.name}</div>
               </div>
             `).join('')}
+          </div>
+        </div>
+        <div class="form-group" id="childCategoryGroup" style="display:${firstParent?.children?.length ? 'block' : 'none'}">
+          <label>二级分类</label>
+          <div class="category-grid" id="childCategoryGrid">
+            ${firstParent?.children?.map(c => `
+              <div class="category-item child-category" data-id="${c.id}">
+                <div class="icon">${c.icon || '📦'}</div>
+                <div class="name">${c.name}</div>
+              </div>
+            `).join('') || ''}
           </div>
         </div>
         <div class="form-group">
@@ -264,9 +276,37 @@ class ExpenseTracker {
       </div>
     `;
 
-    container.querySelectorAll('.category-item').forEach(item => {
+    container.querySelectorAll('.parent-category').forEach(item => {
       item.addEventListener('click', () => {
-        container.querySelectorAll('.category-item').forEach(i => i.classList.remove('selected'));
+        container.querySelectorAll('.parent-category').forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+        const parent = this.categories.find(c => c.id === parseInt(item.dataset.id));
+        const childGrid = document.getElementById('childCategoryGrid');
+        const childGroup = document.getElementById('childCategoryGroup');
+        if (parent?.children?.length) {
+          childGroup.style.display = 'block';
+          childGrid.innerHTML = parent.children.map(c => `
+            <div class="category-item child-category" data-id="${c.id}">
+              <div class="icon">${c.icon || '📦'}</div>
+              <div class="name">${c.name}</div>
+            </div>
+          `).join('');
+          childGrid.querySelectorAll('.child-category').forEach(ch => {
+            ch.addEventListener('click', () => {
+              childGrid.querySelectorAll('.child-category').forEach(i => i.classList.remove('selected'));
+              ch.classList.add('selected');
+            });
+          });
+        } else {
+          childGroup.style.display = 'none';
+          childGrid.innerHTML = '';
+        }
+      });
+    });
+
+    container.querySelectorAll('.child-category').forEach(item => {
+      item.addEventListener('click', () => {
+        container.querySelectorAll('.child-category').forEach(i => i.classList.remove('selected'));
         item.classList.add('selected');
       });
     });
@@ -300,7 +340,9 @@ class ExpenseTracker {
 
   async submitExpense() {
     const amount = parseFloat(document.getElementById('expenseAmount').value);
-    const selectedCategory = document.querySelector('#categoryGrid .category-item.selected');
+    const selectedChild = document.querySelector('#childCategoryGrid .child-category.selected');
+    const selectedParent = document.querySelector('#parentCategoryGrid .parent-category.selected');
+    const selectedCategory = selectedChild || selectedParent;
     const date = document.getElementById('expenseDate').value;
     const desc = document.getElementById('expenseDesc').value;
     const selectedTags = [...document.querySelectorAll('#tagChips .tag-chip.selected')].map(t => parseInt(t.dataset.id));
@@ -341,7 +383,11 @@ class ExpenseTracker {
           </div>
           <select id="filterCategory">
             <option value="">全部分类</option>
-            ${this.categories.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('')}
+            ${this.categories.map(p => `
+              <optgroup label="${p.icon} ${p.name}">
+                ${p.children.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('')}
+              </optgroup>
+            `).join('')}
           </select>
           <select id="filterUser">
             <option value="">全部成员</option>
@@ -637,16 +683,29 @@ class ExpenseTracker {
         <div class="card">
           <h2>分类管理</h2>
           <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <select id="newCategoryParent" style="padding:10px; border:2px solid #ddd; border-radius:8px;">
+              <option value="">作为一级分类</option>
+              ${this.categories.filter(c => c.is_system).map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('')}
+            </select>
             <input type="text" id="newCategoryName" placeholder="分类名称" style="flex:1; padding:10px; border:2px solid #ddd; border-radius:8px;">
             <input type="text" id="newCategoryIcon" placeholder="图标" style="width:80px; padding:10px; border:2px solid #ddd; border-radius:8px;">
             <button class="btn btn-primary btn-sm" onclick="app.addCategory()">添加</button>
           </div>
           <div class="category-manage">
-            ${this.categories.map(c => `
-              <div class="category-manage-item">
-                <span class="icon">${c.icon || '📦'}</span>
-                <span class="name">${c.name}</span>
-                ${c.is_system ? '<span class="badge">系统</span>' : `<button class="delete-btn" onclick="app.deleteCategory(${c.id})">删除</button>`}
+            ${this.categories.map(p => `
+              <div>
+                <div class="category-manage-item" style="font-weight:bold; background:#f0f0f0;">
+                  <span class="icon">${p.icon || '📦'}</span>
+                  <span class="name">${p.name}</span>
+                  <span class="badge">${p.is_system ? '系统' : '自定义'}</span>
+                </div>
+                ${p.children.map(c => `
+                  <div class="category-manage-item" style="padding-left:40px;">
+                    <span class="icon">${c.icon || '📦'}</span>
+                    <span class="name">${c.name}</span>
+                    ${c.is_system ? '<span class="badge">系统</span>' : `<button class="delete-btn" onclick="app.deleteCategory(${c.id})">删除</button>`}
+                  </div>
+                `).join('')}
               </div>
             `).join('')}
           </div>
@@ -726,10 +785,13 @@ class ExpenseTracker {
   async addCategory() {
     const name = document.getElementById('newCategoryName').value.trim();
     const icon = document.getElementById('newCategoryIcon').value.trim();
+    const parentId = document.getElementById('newCategoryParent').value;
     if (!name) { this.showToast('请输入分类名称'); return; }
     try {
-      const data = await this.api('/api/expense/categories', { method: 'POST', body: JSON.stringify({ name, icon: icon || null }) });
-      this.categories.push(data.category);
+      const body = { name, icon: icon || null };
+      if (parentId) body.parent_id = parseInt(parentId);
+      const data = await this.api('/api/expense/categories', { method: 'POST', body: JSON.stringify(body) });
+      await this.loadCategories();
       this.renderSettings();
       this.showToast('分类已添加');
     } catch (e) {
