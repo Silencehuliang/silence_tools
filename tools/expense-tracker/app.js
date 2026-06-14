@@ -41,7 +41,10 @@ class ExpenseTracker {
   renderUserInfo() {
     const container = document.getElementById('userContainer');
     if (!auth.user) {
-      container.innerHTML = '<span style="color:rgba(255,255,255,0.7); font-size:13px;">未登录</span>';
+      container.innerHTML = `
+        <button onclick="auth.showLogin()" style="padding:6px 14px;background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:20px;cursor:pointer;font-size:13px;">登录</button>
+        <button onclick="auth.showRegister()" style="padding:6px 14px;background:transparent;color:white;border:1px solid rgba(255,255,255,0.3);border-radius:20px;cursor:pointer;font-size:13px;">注册</button>
+      `;
       return;
     }
     container.innerHTML = `
