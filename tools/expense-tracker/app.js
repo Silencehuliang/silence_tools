@@ -767,4 +767,5 @@ class ExpenseTracker {
 }
 
 const app = new ExpenseTracker();
+window.app = app;
 app.init();
