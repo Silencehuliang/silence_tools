@@ -5,6 +5,10 @@ import { handleResetRequest, handleAdminResetRequests, handleAdminApproveReset, 
 import { handleProfile } from './handlers/profile.js';
 import { handleAlerts } from './handlers/alerts.js';
 import { handleGoldHistory, saveGoldHistory } from './handlers/gold.js';
+import { handleFamily } from './handlers/family.js';
+import { handleCategory } from './handlers/category.js';
+import { handleTag } from './handlers/tag.js';
+import { handleExpense } from './handlers/expense.js';
 import { handleCors, jsonResponse } from './cors.js';
 
 export default {
@@ -49,6 +53,20 @@ export default {
       if (path.startsWith('/api/alerts')) {
         if (!session) return jsonResponse({ error: '未登录' }, 401);
         return await handleAlerts(request, env, session);
+      }
+
+      // 家庭消费记录
+      if (path.startsWith('/api/family')) {
+        return await handleFamily(request, env, session);
+      }
+      if (path.startsWith('/api/expense/categories') || path.startsWith('/api/expense/tags')) {
+        if (path.startsWith('/api/expense/categories')) {
+          return await handleCategory(request, env, session);
+        }
+        return await handleTag(request, env, session);
+      }
+      if (path.startsWith('/api/expenses')) {
+        return await handleExpense(request, env, session);
       }
 
       // 管理员接口

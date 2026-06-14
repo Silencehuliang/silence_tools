@@ -47,6 +47,7 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         { src: 'tools/gold-price/auth.js', dest: 'tools/gold-price' },
+        { src: 'tools/gold-price/auth.js', dest: 'tools/expense-tracker' },
         { src: 'tools/gold-price/auth.js', dest: '.' }
       ]
     })
@@ -55,7 +56,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        goldPrice: resolve(__dirname, 'tools/gold-price/index.html')
+        goldPrice: resolve(__dirname, 'tools/gold-price/index.html'),
+        expenseTracker: resolve(__dirname, 'tools/expense-tracker/index.html')
       }
     }
   }

@@ -5,7 +5,7 @@ compatibility_date = "2024-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "silence-tools-db"
-database_id = "aad4577f-e799-4fbf-b6da-3d98eafd5916"
+database_id = "2ff71c2a-3a0f-41fb-a680-3c2344ea75a1"
 
 [vars]
 FRONTEND_URL = "https://silence-tools.pages.dev"
