@@ -282,7 +282,16 @@ class ExpenseTracker {
       this.api('/api/expense/tags', { method: 'POST', body: JSON.stringify({ name: name.trim() }) })
         .then(data => {
           this.tags.push(data.tag);
-          this.renderAddExpense();
+          const tagChips = document.getElementById('tagChips');
+          if (tagChips) {
+            const addBtn = tagChips.querySelector('.tag-add');
+            const newChip = document.createElement('div');
+            newChip.className = 'tag-chip';
+            newChip.dataset.id = data.tag.id;
+            newChip.textContent = data.tag.name;
+            newChip.addEventListener('click', () => newChip.classList.toggle('selected'));
+            tagChips.insertBefore(newChip, addBtn);
+          }
           this.showToast('标签创建成功');
         })
         .catch(e => this.showToast(e.message));
